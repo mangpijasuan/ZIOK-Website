@@ -5,6 +5,9 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const { chromium } = require('playwright');
 const { AxeBuilder } = require('@axe-core/playwright');
+const os = require('node:os');
+const { createApp } = require('../server/app.cjs');
+const { hashPassword, parseUsers } = require('../server/auth.cjs');
 
 const root = path.resolve(__dirname, '..');
 const prefix = '/ZIOK-Website/';
@@ -68,6 +71,48 @@ async function imageLoaded(page) {
 const desktop = { width: 1440, height: 900 };
 const mobile = { width: 390, height: 844 };
 const pages = ['index.html', 'leadership.html', 'businesses.html', 'churches.html', 'villages.html', 'governance.html', 'reader.html?doc=constitution', 'reader.html?doc=bylaws'];
+
+test('administrator can sign in, save bilingual draft and publish it', async () => {
+  const folder = await fs.mkdtemp(path.join(os.tmpdir(), 'ziok-browser-'));
+  const password = 'test-only-password-for-browser';
+  const users = parseUsers(JSON.stringify([{ username: 'officer', role: 'admin', passwordHash: await hashPassword(password) }]));
+  const origin = 'http://127.0.0.1:18659';
+  const adminServer = createApp({ users, stateFile: path.join(folder, 'content.json'), origin, secureCookies: false });
+  let context;
+  try {
+    await new Promise((resolve, reject) => { adminServer.once('error', reject); adminServer.listen(18659, '127.0.0.1', resolve); });
+    context = await browser.newContext({ viewport: desktop });
+    const page = await context.newPage();
+    const errors = [];
+    page.on('pageerror', error => errors.push(error.message));
+    await page.goto(origin + '/admin');
+    await page.locator('#username').fill('officer');
+    await page.locator('#password').fill(password);
+    await page.locator('#login button').click();
+    await page.locator('#dashboard').waitFor({ state: 'visible' });
+    await page.locator('#news-items [data-field="title"]').first().fill('Test announcement');
+    await page.locator('#news-items [data-field="titleZo"]').first().fill('Entelna thuthak');
+    await page.locator('#editor button[type="submit"]').click();
+    await textIs(page, '#status', 'Draft saved.');
+    const publicPage = await context.newPage();
+    await publicPage.goto(origin + '/');
+    assert.equal(await publicPage.locator('#newsgrid h3').first().textContent(), 'A home for the Zomi community');
+    page.once('dialog', dialog => dialog.accept());
+    await page.locator('#publish').click();
+    await textIs(page, '#status', 'Published successfully.');
+    await publicPage.reload();
+    assert.equal(await publicPage.locator('#newsgrid h3').first().textContent(), 'Test announcement');
+    await publicPage.locator('#lang').selectOption('zo');
+    await textIs(publicPage, '#newsgrid h3', 'Entelna thuthak');
+    await page.locator('#logout').click();
+    await page.locator('#signin').waitFor({ state: 'visible' });
+    assert.deepEqual(errors, []);
+  } finally {
+    await context?.close();
+    await new Promise(resolve => adminServer.close(resolve));
+    await fs.rm(folder, { recursive: true, force: true });
+  }
+});
 
 for (const [name, viewport] of [['desktop', desktop], ['mobile', mobile]]) {
   test(`${name}: every public route renders without horizontal page overflow`, async () => {
