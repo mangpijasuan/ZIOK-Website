@@ -1,15 +1,87 @@
 # Zomi Innkuan Oklahoma, Inc. website
 
-Complete static website export, November 20, 2026. The HTML, CSS and JavaScript run without a build step or package installation.
+The public website runs without a build step. For the full experience, including the administrator dashboard and persistent content, run the Node.js server.
 
-## Run locally
+## Run locally (recommended: full website and admin portal)
 
-1. Clone the repository or extract the ZIP file.
-2. Open a terminal in `ZIOK-Website`.
-3. Run `python -m http.server 8000` (or `python3 -m http.server 8000`).
-4. Visit `http://localhost:8000` in your browser.
+Prerequisites: Git and Node.js 22 or newer (including npm).
 
-Use a local HTTP server rather than opening the HTML as a file so navigation and local language preferences work consistently.
+### 1. Clone the repository
+
+```sh
+git clone https://github.com/mangpijasuan/ZIOK-Website.git
+cd ZIOK-Website
+```
+
+If you already cloned it, open a terminal in that folder and run `git pull origin main`.
+
+### 2. Configure a local test administrator and start the server
+
+**Windows (PowerShell)**
+
+```powershell
+$credential = [PSCredential]::new("admin", (Read-Host "Choose a local test password (14+ characters)" -AsSecureString))
+$hash = $credential.GetNetworkCredential().Password | node server/hash-password.cjs
+Remove-Variable credential
+$env:ZIOK_USERS_JSON = ConvertTo-Json -Compress -InputObject @(
+    @{ username = "admin"; role = "admin"; passwordHash = $hash }
+)
+$env:ZIOK_INSECURE_LOCAL = "true"
+$env:ZIOK_PUBLIC_ORIGIN = "http://127.0.0.1:3000"
+$env:PORT = "3000"
+$env:ZIOK_STATE_FILE = Join-Path (Get-Location) "var/test-content.json"
+npm start
+```
+
+**macOS / Linux (Bash)**
+
+```bash
+read -rs -p "Choose a local test password (14+ characters): " ziok_password
+printf '\n'
+ziok_hash=$(printf '%s' "$ziok_password" | node server/hash-password.cjs)
+unset ziok_password
+export ZIOK_USERS_JSON=$(node -e 'process.stdout.write(JSON.stringify([{username:"admin",role:"admin",passwordHash:process.argv[1]}]))' "$ziok_hash")
+export ZIOK_INSECURE_LOCAL=true
+export ZIOK_PUBLIC_ORIGIN=http://127.0.0.1:3000
+export PORT=3000
+export ZIOK_STATE_FILE="$PWD/var/test-content.json"
+npm start
+```
+
+Use a unique local test password of 14–256 characters. Do not reuse production credentials or commit the account configuration.
+
+### 3. Open the website
+
+- Public website: http://127.0.0.1:3000
+- Administrator portal: http://127.0.0.1:3000/admin
+- Username: `admin`
+- Password: the local password you chose above.
+
+Keep the terminal open while testing. The expected startup message is `ZIOK server listening on loopback port 3000`. Save and publish content through the administrator portal; test changes persist in `var/test-content.json`.
+
+If port 3000 is occupied, change both `PORT` and `ZIOK_PUBLIC_ORIGIN` to another unused port and open the matching URL. If the browser refuses the connection, check that `npm start` is still running. Always use the exact configured origin for administrator sign-in.
+
+### 4. Update the running website
+
+Stop the server with Ctrl+C, then run these commands in the same terminal:
+
+```sh
+git switch main
+git pull origin main
+npm start
+```
+
+Refresh the browser (Ctrl+F5). A new terminal requires the local environment configuration above again. Keep the same state-file path to preserve your saved content.
+
+## Run locally (public-only static preview)
+
+For a public-only preview without admin editing, Python 3 is sufficient:
+
+```sh
+python -m http.server 8000 --bind 127.0.0.1
+```
+
+Open http://127.0.0.1:8000. Use `python3` if needed. This is a local preview only; never expose a general-purpose directory server to the public internet.
 
 ## Deploy to ziok.org
 
@@ -52,7 +124,7 @@ The original 42 businesses, 18 churches, 49 village associations and 14 board me
 
 For each officer, create a unique password hash using `node server/hash-password.cjs` with the password supplied through stdin (use a protected terminal input; never put a password on a command line). Each account must have a unique username, role `admin` or `editor`, and the resulting `passwordHash`. Supply these values via the protected `ZIOK_USERS_JSON` environment variable as a JSON array; do not commit the configuration. At least one admin is required. No default account or password is provided.
 
-Local development: set `ZIOK_INSECURE_LOCAL=true`, `ZIOK_PUBLIC_ORIGIN=http://127.0.0.1:8080`, and the account configuration, then run `npm start`. Visit `http://127.0.0.1:8080/admin`. Never enable local development mode in production.
+Local development: follow the full local setup above. Never enable local development mode in production.
 
 Production: set `ZIOK_PUBLIC_ORIGIN=https://ziok.org`, configure the `ZIOK_USERS_JSON` environment secret, and set `ZIOK_STATE_FILE` to a protected persistent location outside the web root. Run `npm start` behind an HTTPS reverse proxy that forwards the site to loopback port 8080. The service binds only to loopback; configure HTTPS, HSTS and request limits at the proxy. The public content script is served from the last published state; draft updates remain private. Cookie sessions expire after eight hours and are invalidated by server restarts. The app uses same-origin requests, CSRF checks, password hashing, role checks, login limits and an explicit public-file allowlist.
 
