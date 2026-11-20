@@ -132,4 +132,10 @@ This is a single-process deployment: do not run multiple replicas against the sa
 
 Run `npm run test:server` to validate authentication, editing roles, draft/publish isolation, audit and persistence.
 
+## License
+
+The original website software and developer-authored technical documentation are licensed under the [MIT License](LICENSE), copyright © 2026 Mangpi Jasuan.
+
+The license does not grant rights to use Zomi Innkuan Oklahoma, Inc.'s name, official logo or seal, constitution and bylaws, community directory records, photographs, or other organizational and third-party content. These retain their applicable ownership and permissions. Third-party software dependencies remain subject to their respective licenses.
+
 Developer: MJ — https://mangpijasuan.github.io/MJ/

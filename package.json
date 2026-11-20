@@ -1,6 +1,7 @@
 {
   "name": "ziok-website",
   "private": true,
+  "license": "MIT",
   "scripts": {
     "start": "node server/app.cjs",
     "test:server": "node --test tests/server.test.cjs",
