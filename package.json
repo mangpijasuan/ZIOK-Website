@@ -1,0 +1,10 @@
+{
+  "name": "ziok-website",
+  "private": true,
+  "scripts": {
+    "test:browser": "node --test tests/browser.test.cjs"
+  },
+  "devDependencies": {
+    "playwright": "1.62.1"
+  }
+}

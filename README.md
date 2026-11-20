@@ -34,6 +34,7 @@ This is a static application. Official public media links are configured central
 ## Validation and deployment checklist
 
 - Run `python -m unittest discover -s tests -v` with Python 3 and Node.js installed. GitHub Actions runs the same checks on pushes and pull requests.
+- Run `npm ci`, `npx playwright install chromium`, and `npm run test:browser` for Chromium browser regression tests. The suite uses a temporary local HTTP server and checks both desktop and mobile layouts, navigation, localization, search, dialogs, and governance documents. GitHub Actions runs these tests automatically.
 - Verify the site at desktop and mobile widths and in English and Zomi, including both document readers and directory filters.
 - On GitHub Pages, serve the root of the branch and configure `ziok.org` only when the domain is ready. Relative links also support a repository subpath.
 - `robots.txt` and `sitemap.xml` assume `https://ziok.org/` is the final public address; update them if it changes.
