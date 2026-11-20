@@ -54,18 +54,41 @@ function approvedUrl(value, hosts) {
     return url.protocol === 'https:' && hosts.includes(url.hostname) ? url.href : null;
   } catch { return null; }
 }
+function contentText(tag, english, zomi = '', className = '') {
+  const element = document.createElement(tag);
+  element.className = className;
+  element.textContent = english;
+  element.dataset.contentEn = english;
+  element.dataset.contentZo = zomi || english;
+  return element;
+}
+if (ZIOK_CONTENT) {
+  $('newsgrid').replaceChildren(...ZIOK_CONTENT.news.map(item => {
+    const card = document.createElement('article'); card.className = 'card';
+    const inner = document.createElement('div'); inner.className = 'inner';
+    inner.append(contentText('div', item.tag, '', 'tag'), contentText('h3', item.title, item.titleZo), contentText('p', item.body, item.bodyZo));
+    card.append(inner); return card;
+  }));
+  $('eventgrid').replaceChildren(...ZIOK_CONTENT.events.map(item => {
+    const card = document.createElement('article'); card.className = 'event';
+    const inner = document.createElement('div');
+    inner.append(contentText('h3', item.title, item.titleZo), contentText('p', item.body, item.bodyZo));
+    card.append(contentText('div', item.date, '', 'date'), inner); return card;
+  }));
+}
 function addMediaLink(container, url, label) {
   const link = document.createElement('a');
   link.href = url; link.textContent = label; link.className = 'source';
   link.target = '_blank'; link.rel = 'noopener noreferrer';
   container.append(document.createElement('br'), link);
 }
-const channel = approvedUrl(ZIOK_MEDIA.youtubeChannel, ['youtube.com', 'www.youtube.com', 'm.youtube.com']);
-const facebook = approvedUrl(ZIOK_MEDIA.facebookPage, ['facebook.com', 'www.facebook.com', 'm.facebook.com']);
-if (/^[\w-]{11}$/.test(ZIOK_MEDIA.youtubeVideoId)) {
+const media = ZIOK_CONTENT?.media || ZIOK_MEDIA;
+const channel = approvedUrl(media.youtubeChannel, ['youtube.com', 'www.youtube.com', 'm.youtube.com']);
+const facebook = approvedUrl(media.facebookPage, ['facebook.com', 'www.facebook.com', 'm.facebook.com']);
+if (/^[\w-]{11}$/.test(media.youtubeVideoId)) {
   const iframe = document.createElement('iframe');
   iframe.className = 'embed'; iframe.loading = 'lazy'; iframe.title = 'Community video';
-  iframe.src = 'https://www.youtube-nocookie.com/embed/' + ZIOK_MEDIA.youtubeVideoId;
+  iframe.src = 'https://www.youtube-nocookie.com/embed/' + media.youtubeVideoId;
   iframe.allowFullscreen = true;
   $('videos').replaceChildren(iframe);
   $('ytstatus').textContent = 'YouTube · Community videos';

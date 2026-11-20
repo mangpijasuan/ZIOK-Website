@@ -51,7 +51,7 @@ const zomiText = {
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
     let node;
     while ((node = walker.nextNode())) {
-      if (node.parentElement?.closest('script,style,[contenteditable],textarea')) continue;
+      if (node.parentElement?.closest('script,style,[contenteditable],textarea,[data-content-en]')) continue;
       const text = node.nodeValue;
       const previous = originals.get(node);
       const english = previous && (text === previous.english || text === previous.zomi) ? previous.english : text;
@@ -61,6 +61,10 @@ const zomiText = {
       originals.set(node, {english, zomi: translated});
       const next = isZomi ? translated : english;
       if (text !== next) node.nodeValue = next;
+    }
+    for (const element of root.querySelectorAll('[data-content-en]')) {
+      const value = isZomi ? element.dataset.contentZo : element.dataset.contentEn;
+      if (element.textContent !== value) element.textContent = value;
     }
     for (const element of root.querySelectorAll('[aria-label], [placeholder]')) {
       const attributes = originalAttributes.get(element) || {};
