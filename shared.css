@@ -1,0 +1,10 @@
+/* Shared interaction and accessibility styles for every public page. */
+:focus-visible { outline: 3px solid #b32c3b; outline-offset: 3px; }
+.skip-link { position: absolute; top: 0; left: 0; z-index: 100; background: #fff; color: #102743; padding: 12px; transform: translateY(-150%); }
+.skip-link:focus { transform: translateY(0); }
+.language-select { appearance: none; display: inline-block; width: auto; flex-shrink: 0; border: 1px solid #8597ab; border-radius: 5px; padding: 8px 29px 8px 11px; background: #fff url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2712%27 height=%277%27 viewBox=%270 0 12 7%27%3E%3Cpath d=%27M1 1l5 5 5-5%27 fill=%27none%27 stroke=%27%23153657%27 stroke-width=%271.5%27/%3E%3C/svg%3E") no-repeat right 10px center; color: #153657; font: 700 13px Arial,sans-serif; cursor: pointer; white-space: nowrap; }
+button, select, input, .btn, .chip { min-height: 24px; }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}

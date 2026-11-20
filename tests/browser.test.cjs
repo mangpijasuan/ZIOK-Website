@@ -4,10 +4,11 @@ const http = require('node:http');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { chromium } = require('playwright');
+const { AxeBuilder } = require('@axe-core/playwright');
 
 const root = path.resolve(__dirname, '..');
 const prefix = '/ZIOK-Website/';
-const types = { '.html': 'text/html', '.js': 'text/javascript', '.png': 'image/png', '.pdf': 'application/pdf' };
+const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.webp': 'image/webp', '.png': 'image/png', '.pdf': 'application/pdf' };
 let server, browser, base;
 
 before(async () => {
@@ -105,6 +106,7 @@ test('business filtering, Zomi translation and persistence', async () => {
     await textIs(page, '#result-count', '14 / 42');
     await page.locator('#lang').selectOption('zo');
     await textIs(page, '#category option[value="Markets"]', 'Sumbuk');
+    assert.notEqual(await page.locator('#search').getAttribute('placeholder'), 'Search by name, city, or address');
     assert.equal(await page.locator('#category').inputValue(), 'Markets');
     await page.locator('#category').selectOption('Restaurants');
     await textIs(page, '#result-count', '8 / 42');
@@ -117,6 +119,20 @@ test('business filtering, Zomi translation and persistence', async () => {
     assert.equal(await page.locator('html').getAttribute('lang'), 'ctd');
     await page.locator('#lang').selectOption('en');
     await textIs(page, '#category option[value="Markets"]', 'Markets');
+  });
+});
+
+test('public pages have no automated WCAG A/AA violations', async () => {
+  await withPage(desktop, async page => {
+    const failures = [];
+    for (const file of pages) {
+      await open(page, file);
+      const result = await new AxeBuilder({ page })
+        .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
+        .analyze();
+      failures.push(...result.violations.map(v => `${file}: ${v.id} (${v.nodes.map(n => n.target.join(' ')).join(', ')})`));
+    }
+    assert.deepEqual(failures, []);
   });
 });
 
@@ -145,7 +161,7 @@ test('leadership term switching and homepage dialog keyboard controls', async ()
     await page.locator('#tab26').click();
     await page.locator('#term26').waitFor({ state: 'visible' });
     assert.equal(await page.locator('#tab26').getAttribute('aria-selected'), 'true');
-    await page.locator('#tab24').click();
+    await page.keyboard.press('ArrowLeft');
     await page.locator('#term24').waitFor({ state: 'visible' });
     await open(page, 'index.html');
     const trigger = page.locator('#join button');

@@ -1,5 +1,17 @@
 // Zomi draft localization based on the supplied SZSF cleaned master dictionary.
 const zomiText = {
+  'Language':'Kampau',
+  'Open navigation':'Mun tuamtuam ah paihna hong in',
+  'Close navigation':'Mun tuamtuam ah paihna khak in',
+  'Close dialog':'Kha in',
+  'Board term':'Makai hun',
+  'Page':'Laimai',
+  'Document controls':'Lai simna zatna',
+  'Zoom in':'Liansak in',
+  'Zoom out':'Neusak in',
+  'Search by name, city, or address':'Min, khua ahihkeileh mun tawh zong in',
+  'Church or pastor name':'Pawlpi ahihkeileh pastor min',
+  'Search by village name':'Khua min tawh zong in',
   'Skip to content':'A thu bulpi ah pai in',
   'Facebook · Updates coming soon':'Facebook · Thuthak hong om ding',
   'YouTube · Updates coming soon':'YouTube · Thuthak hong om ding',
@@ -34,6 +46,7 @@ const zomiText = {
   let isZomi = false;
   try { isZomi = localStorage.getItem('ziok-language') === 'zo'; } catch { /* Storage may be disabled. */ }
   const originals = new WeakMap();
+  const originalAttributes = new WeakMap();
   function apply(root = document.body) {
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
     let node;
@@ -43,11 +56,26 @@ const zomiText = {
       const previous = originals.get(node);
       const english = previous && (text === previous.english || text === previous.zomi) ? previous.english : text;
       const key = english.trim();
-      if (!zomiText[key]) continue;
+      if (!Object.hasOwn(zomiText, key)) continue;
       const translated = english.replace(key, zomiText[key]);
       originals.set(node, {english, zomi: translated});
       const next = isZomi ? translated : english;
       if (text !== next) node.nodeValue = next;
+    }
+    for (const element of root.querySelectorAll('[aria-label], [placeholder]')) {
+      const attributes = originalAttributes.get(element) || {};
+      for (const name of ['aria-label', 'placeholder']) {
+        const value = element.getAttribute(name);
+        if (!value) continue;
+        const previous = attributes[name];
+        const english = previous && (value === previous.english || value === previous.zomi) ? previous.english : value;
+        if (!Object.hasOwn(zomiText, english)) continue;
+        const zomi = zomiText[english];
+        attributes[name] = { english, zomi };
+        const next = isZomi ? zomi : english;
+        if (value !== next) element.setAttribute(name, next);
+      }
+      originalAttributes.set(element, attributes);
     }
     document.documentElement.lang = isZomi ? 'ctd' : 'en';
     const language = document.getElementById('lang');
@@ -61,6 +89,6 @@ const zomiText = {
   });
   apply();
   new MutationObserver(records => {
-    if (records.some(r => r.type === 'childList' || r.type === 'characterData')) apply();
-  }).observe(document.body, {childList: true, characterData: true, subtree: true});
+    if (records.length) apply();
+  }).observe(document.body, {childList: true, characterData: true, attributes: true, attributeFilter: ['aria-label', 'placeholder'], subtree: true});
 })();

@@ -36,8 +36,12 @@ This is a static application. Official public media links are configured central
 - Run `python -m unittest discover -s tests -v` with Python 3 and Node.js installed. GitHub Actions runs the same checks on pushes and pull requests.
 - Run `npm ci`, `npx playwright install chromium`, and `npm run test:browser` for Chromium browser regression tests. The suite uses a temporary local HTTP server and checks both desktop and mobile layouts, navigation, localization, search, dialogs, and governance documents. GitHub Actions runs these tests automatically.
 - Verify the site at desktop and mobile widths and in English and Zomi, including both document readers and directory filters.
+- The browser suite also checks machine-detectable WCAG A/AA issues using axe-core. Automated scans are not a certification; manually review keyboard operation, screen-reader experience, contrast under all states, and the accessibility of the original governance PDFs.
+- The original logo remains available as `ziok-logo.png`; the interface uses the optimized `ziok-logo-160.webp`. Shared accessibility and language-control styles live in `shared.css`.
 - On GitHub Pages, serve the root of the branch and configure `ziok.org` only when the domain is ready. Relative links also support a repository subpath.
 - `robots.txt` and `sitemap.xml` assume `https://ziok.org/` is the final public address; update them if it changes.
+- Canonicals and Open Graph URLs assume the same production domain. The image-based document reader is marked `noindex` in favor of the governance landing page. The language switch is client-side; separate indexable Zomi URLs and `hreflang` are not yet implemented.
+- Cloudflare Pages can use the included `_headers` file for the static site. GitHub Pages does not apply this file; configure equivalent headers at a compatible host or reverse proxy. The policy permits the approved privacy-enhanced YouTube embed and existing inline CSS, but no inline scripts. Test the actual deployed response headers and media before launch.
 - Before launch, enable HTTPS and configure host-supported security headers (including a suitable Content Security Policy, allowing the approved YouTube embed if used), verify content publication permissions, and review directory contact details. These are hosting and organizational tasks, not automatically enabled by this static repository.
 
 Developer: MJ — https://mangpijasuan.github.io/MJ/
