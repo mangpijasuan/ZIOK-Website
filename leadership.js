@@ -1,4 +1,38 @@
-const members=[['Cin Hatlang','Mangsen','Chairman'],['Tual Pau','Pautawng Hatlang','Vice Chairman'],['Mangpi Jasuan','Mangpi','Secretary'],['Dim Cing','Lun Cing','Assistant Secretary'],['Dim Nuam','Nuampi','Treasurer'],['Kham Niang','Niangniang','Assistant Treasurer'],['Tuang Gualnam','Lianbawi','Director of Genvai'],['Andrew Nun','Nunpi','Director of Sports'],['Dal Kham','Khampu','Director of Media'],['Suan Lun','Suihlun','Assistant Director of Music'],['Thang Piang','Sb Tungpi','Assistant Director of Genvai'],['Cin Zang','Cyi Zang','Public Relations'],['Sian Niang','Mingmawi','Director of Music'],['Lun Siam','Siamnu','Assistant Director of Media']];const grid=document.getElementById('members');members.forEach(([name,nickname,role],i)=>{let card=document.createElement('article');card.className='member'+(i<6?' officer':'');let avatar=document.createElement('div');avatar.className='avatar';avatar.textContent=name.split(' ').map(x=>x[0]).join('');avatar.setAttribute('aria-hidden','true');let info=document.createElement('div');for(const [tag,cls,value] of [['h3','',name],['p','nickname',nickname],['p','role',role]]){let e=document.createElement(tag);e.className=cls;e.textContent=value;info.append(e)}card.append(avatar,info);grid.append(card)});
+const leadership = ZIOK_CONTENT?.leadership ?? ZIOK_COMMUNITY_DEFAULTS.leadership;
+const terms = ZIOK_CONTENT?.terms ?? ZIOK_COMMUNITY_DEFAULTS.terms;
+const tablist = document.querySelector('[role="tablist"]');
+const main = document.getElementById('main-content');
+tablist.replaceChildren();
+main.querySelectorAll('[role="tabpanel"]').forEach(panel => panel.remove());
+
+function translatedText(element, english, zomi) {
+  element.textContent = english;
+  element.dataset.contentEn = english;
+  element.dataset.contentZo = zomi;
+}
+function memberCard(member) {
+  const card = document.createElement('article'); card.className = 'member' + (member.kind === 'Officer' ? ' officer' : '');
+  const avatar = document.createElement('div'); avatar.className = 'avatar'; avatar.textContent = member.name.split(/\s+/).map(word => word[0]).join(''); avatar.setAttribute('aria-hidden', 'true');
+  const info = document.createElement('div');
+  for (const [tag, cls, value] of [['h3', '', member.name], ['p', 'nickname', member.nickname], ['p', 'role', member.role]]) {
+    const element = document.createElement(tag); element.className = cls; element.textContent = value; info.append(element);
+  }
+  card.append(avatar, info); return card;
+}
+for (const [index, term] of terms.entries()) {
+  const suffix = term.label === '2024–2026' ? '24' : term.label === '2026–2028' ? '26' : term.label.replace('–', '-');
+  const tab = document.createElement('button'); tab.id = 'tab' + suffix; tab.type = 'button'; tab.textContent = term.label; tab.setAttribute('role', 'tab'); tab.setAttribute('aria-controls', 'term' + suffix); tab.setAttribute('aria-selected', String(index === 0)); tab.tabIndex = index === 0 ? 0 : -1; tablist.append(tab);
+  const panel = document.createElement('section'); panel.id = 'term' + suffix; panel.setAttribute('role', 'tabpanel'); panel.setAttribute('aria-labelledby', tab.id); panel.tabIndex = 0; panel.classList.toggle('hidden', index !== 0);
+  const heading = document.createElement('h2'); heading.className = 'title'; translatedText(heading, `${term.label} Board Members`, `${term.label} Makai pawl sungmite`); panel.append(heading);
+  const members = leadership.filter(member => member.term === term.label);
+  if (members.length) {
+    const summary = document.createElement('p'); summary.className = 'muted'; translatedText(summary, `${members.length} members · Officers and directors`, `Pawl sungmi ${members.length} · Makaite leh vaihawmte`);
+    const grid = document.createElement('div'); grid.className = 'grid'; if (index === 0) grid.id = 'members'; grid.append(...members.map(memberCard)); panel.append(summary, grid);
+  } else {
+    const empty = document.createElement('div'); empty.className = 'empty'; empty.textContent = 'The board roster for this term will be added once provided.'; panel.append(empty);
+  }
+  main.append(panel);
+}
 const termTabs = [...document.querySelectorAll('[role="tab"]')];
 function selectTerm(tab) {
   for (const item of termTabs) {

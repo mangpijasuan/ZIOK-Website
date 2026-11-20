@@ -2,11 +2,11 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const { randomBytes, timingSafeEqual } = require('node:crypto');
-const { defaults, validateContent } = require('./content.cjs');
+const { defaults, validateContent, migrateContent } = require('./content.cjs');
 const { verifyPassword, parseUsers } = require('./auth.cjs');
 
 const root = path.resolve(__dirname, '..');
-const publicFiles = new Set(['index.html', 'leadership.html', 'businesses.html', 'churches.html', 'villages.html', 'governance.html', 'reader.html', 'home.js', 'locale.js', 'leadership.js', 'businesses.js', 'churches.js', 'villages.js', 'reader.js', 'media-config.js', 'shared.css', 'ziok-logo-160.webp', 'ziok-logo.png', 'robots.txt', 'sitemap.xml']);
+const publicFiles = new Set(['index.html', 'leadership.html', 'businesses.html', 'churches.html', 'villages.html', 'governance.html', 'reader.html', 'home.js', 'locale.js', 'leadership.js', 'businesses.js', 'churches.js', 'villages.js', 'governance.js', 'community-data.js', 'reader.js', 'media-config.js', 'shared.css', 'ziok-logo-160.webp', 'ziok-logo.png', 'robots.txt', 'sitemap.xml']);
 const mime = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.webp': 'image/webp', '.png': 'image/png', '.pdf': 'application/pdf', '.txt': 'text/plain; charset=utf-8', '.xml': 'application/xml; charset=utf-8' };
 const headers = {
   'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'strict-origin-when-cross-origin',
@@ -23,14 +23,14 @@ function json(res, status, body) { res.writeHead(status, { 'Content-Type': 'appl
 async function body(req) {
   if (req.headers['content-type']?.split(';')[0] !== 'application/json') throw new Error('JSON required');
   let size = 0; const chunks = [];
-  for await (const chunk of req) { size += chunk.length; if (size > 262144) throw new Error('Request too large'); chunks.push(chunk); }
+  for await (const chunk of req) { size += chunk.length; if (size > 1048576) throw new Error('Request too large'); chunks.push(chunk); }
   return JSON.parse(Buffer.concat(chunks).toString('utf8'));
 }
 function initialState(file) {
   if (fs.existsSync(file)) {
     const saved = JSON.parse(fs.readFileSync(file, 'utf8'));
     if (!Number.isSafeInteger(saved.revision) || saved.revision < 0 || !Array.isArray(saved.audit)) throw new Error('Invalid content state');
-    return { ...saved, draft: validateContent(saved.draft), published: saved.published === null ? null : validateContent(saved.published) };
+    return { ...saved, draft: migrateContent(saved.draft), published: saved.published === null ? null : migrateContent(saved.published) };
   }
   return { revision: 0, draft: structuredClone(defaults), published: null, audit: [] };
 }
@@ -99,7 +99,7 @@ function createApp({ users, stateFile, origin, secureCookies = true }) {
           if (publish && session.role !== 'admin') return json(res, 403, { error: 'Only administrators can publish' });
           let input; try { input = await body(req); } catch { return json(res, 400, { error: 'Invalid request' }); }
           if (input?.revision !== state.revision) return json(res, 409, { error: 'Content changed; reload before editing' });
-          let draft; try { draft = publish ? state.draft : validateContent(input.content); } catch { return json(res, 400, { error: 'Invalid content; check field lengths and media URLs' }); }
+          let draft; try { draft = publish ? state.draft : validateContent(input.content); } catch (error) { return json(res, 400, { error: error.message || 'Invalid content' }); }
           update(session.username, publish ? 'publish' : 'save draft', draft, publish ? structuredClone(draft) : state.published);
           return json(res, 200, { revision: state.revision });
         }

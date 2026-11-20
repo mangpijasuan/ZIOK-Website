@@ -1,6 +1,14 @@
 const $ = id => document.getElementById(id);
 let session, revision, dirty = false;
 const fields = { news: [['title', 'English title', 150], ['titleZo', 'Zomi title', 150], ['body', 'English announcement', 1000], ['bodyZo', 'Zomi announcement', 1000], ['tag', 'Category label', 80]], events: [['title', 'English title', 150], ['titleZo', 'Zomi title', 150], ['body', 'English description', 1000], ['bodyZo', 'Zomi description', 1000], ['date', 'Date label', 80]] };
+Object.assign(fields, {
+  businesses: [['name', 'Business name', 150], ['phone', 'US phone number', 40], ['address', 'Address', 300], ['category', 'Category', 80, [...new Set(ZIOK_COMMUNITY_DEFAULTS.businesses.map(item => item.category))]]],
+  churches: [['name', 'Church name', 150], ['pastor', 'Pastor', 150]], villages: [['name', 'Association name', 150]],
+  terms: [['label', 'Term (YYYY–YYYY)', 9]], leadership: [['term', 'Board term (YYYY–YYYY)', 9], ['name', 'Full name', 150], ['nickname', 'Nickname', 150], ['role', 'Role', 150], ['kind', 'Member type', 20, ['Officer', 'Director']]],
+  documents: [['type', 'Official document', 20], ['noteEn', 'English note', 1000], ['noteZo', 'Zomi note', 1000]]
+});
+const labels = { news: 'News item', events: 'Event', businesses: 'Business', churches: 'Church', villages: 'Village association', terms: 'Board term', leadership: 'Board member', documents: 'Document' };
+const limits = { news: 50, events: 50, businesses: 200, churches: 200, villages: 200, terms: 20, leadership: 200, documents: 2 };
 const mediaFields = ['youtubeChannel', 'facebookPage', 'youtubeVideoId'];
 function message(value) { $('status').textContent = value; }
 async function request(endpoint, payload) {
@@ -12,14 +20,21 @@ async function request(endpoint, payload) {
 }
 function addRow(type, data = {}) {
   const group = $(type + '-items');
-  if (group.children.length >= 50) { message('Maximum 50 entries per section.'); return; }
+  if (group.children.length >= limits[type]) { message(`Maximum ${limits[type]} entries for this section.`); return; }
   const row = document.createElement('fieldset');
-  const legend = document.createElement('legend'); legend.textContent = type === 'news' ? 'News item' : 'Event'; row.append(legend);
-  for (const [name, caption, max] of fields[type]) {
+  const legend = document.createElement('legend'); legend.textContent = labels[type]; row.append(legend);
+  for (const [name, caption, max, options] of fields[type]) {
     const label = document.createElement('label'); label.textContent = caption;
-    const input = document.createElement(max === 1000 ? 'textarea' : 'input'); input.dataset.field = name; input.maxLength = max; input.value = data[name] || ''; input.required = name === 'title'; label.append(input); row.append(label);
+    const input = document.createElement(options ? 'select' : max === 1000 ? 'textarea' : 'input'); input.dataset.field = name;
+    if (options) for (const value of options) { const option = document.createElement('option'); option.value = value; option.textContent = value; input.append(option); }
+    else input.maxLength = max;
+    input.value = data[name] || options?.[0] || '';
+    input.required = ['title', 'name', 'label', 'term', 'role', 'category', 'kind', 'type'].includes(name);
+    if (type === 'documents' && name === 'type') input.readOnly = true;
+    label.append(input); row.append(label);
   }
-  const remove = document.createElement('button'); remove.type = 'button'; remove.textContent = 'Remove entry'; remove.addEventListener('click', () => { row.remove(); markDirty(); }); row.append(remove); group.append(row);
+  if (type !== 'documents') { const remove = document.createElement('button'); remove.type = 'button'; remove.textContent = 'Remove entry'; remove.addEventListener('click', () => { row.remove(); markDirty(); }); row.append(remove); }
+  group.append(row);
 }
 function markDirty() { dirty = true; $('publish').disabled = true; }
 function snapshot() {
@@ -30,6 +45,7 @@ function snapshot() {
 async function load() {
   const data = await request('state'); revision = data.revision;
   for (const type of Object.keys(fields)) { $(type + '-items').replaceChildren(); data.draft[type].forEach(item => addRow(type, item)); }
+  document.querySelectorAll('[data-filter]').forEach(input => input.value = '');
   mediaFields.forEach(name => $(name).value = data.draft.media[name]);
   $('audit').replaceChildren();
   for (const record of data.audit) { const item = document.createElement('li'); item.textContent = `${record.at} — ${record.actor}: ${record.action} (revision ${record.revision})`; $('audit').append(item); }
@@ -50,9 +66,14 @@ async function busy(button, action) {
 }
 $('login').addEventListener('submit', event => { event.preventDefault(); busy(event.submitter, async () => { await request('login', { username: $('username').value, password: $('password').value }); $('password').value = ''; await signedIn(); }); });
 $('logout').addEventListener('click', () => busy($('logout'), async () => { await request('logout', {}); signedOut(); message('Signed out.'); }));
-document.querySelectorAll('[data-add]').forEach(button => button.addEventListener('click', () => { addRow(button.dataset.add); markDirty(); }));
-$('editor').addEventListener('input', markDirty);
+document.querySelectorAll('[data-add]').forEach(button => button.addEventListener('click', () => { const filter = $('filter-' + button.dataset.add); if (filter) { filter.value = ''; filter.dispatchEvent(new Event('input')); } addRow(button.dataset.add); markDirty(); }));
+document.querySelectorAll('[data-filter]').forEach(input => input.addEventListener('input', () => {
+  const query = input.value.toLowerCase();
+  for (const row of $(input.dataset.filter + '-items').children) row.hidden = ![...row.querySelectorAll('[data-field]')].some(field => field.value.toLowerCase().includes(query));
+}));
+$('editor').addEventListener('input', event => { if (!event.target.matches('[data-filter]')) markDirty(); });
+$('editor').addEventListener('invalid', event => { const details = event.target.closest('details'); if (details) details.open = true; const row = event.target.closest('fieldset'); if (row) row.hidden = false; }, true);
 $('editor').addEventListener('submit', event => { event.preventDefault(); busy(event.submitter, async () => { await request('save', { revision, content: snapshot() }); await load(); message('Draft saved.'); }); });
-$('publish').addEventListener('click', () => { if (!dirty && confirm('Publish the saved draft to the public homepage?')) busy($('publish'), async () => { await request('publish', { revision }); await load(); message('Published successfully.'); }); });
+$('publish').addEventListener('click', () => { if (!dirty && confirm('Publish the saved draft to the public website?')) busy($('publish'), async () => { await request('publish', { revision }); await load(); message('Published successfully.'); }); });
 $('reload').addEventListener('click', () => { if (!dirty || confirm('Discard unsaved changes?')) busy($('reload'), load); });
 signedIn().catch(() => signedOut());

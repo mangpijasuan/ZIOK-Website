@@ -5,7 +5,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { createApp } = require('../server/app.cjs');
 const { hashPassword, parseUsers, verifyPassword } = require('../server/auth.cjs');
-const { defaults, validateContent } = require('../server/content.cjs');
+const { defaults, validateContent, migrateContent } = require('../server/content.cjs');
 
 test('password configuration and content validation', async () => {
   const password = 'test-only-password-for-ci';
@@ -18,6 +18,16 @@ test('password configuration and content validation', async () => {
   good.media.youtubeChannel = 'https://www.youtube.com/@ziok';
   assert.equal(validateContent(good).media.youtubeChannel, good.media.youtubeChannel);
   assert.throws(() => validateContent({ ...good, media: { ...good.media, youtubeChannel: 'https://example.org' } }));
+});
+
+test('community defaults and migration preserve original records, reject invalid changes', () => {
+  const content = validateContent(defaults);
+  assert.deepEqual([content.businesses.length, content.churches.length, content.villages.length, content.leadership.length, content.terms.length, content.documents.length], [42, 18, 49, 14, 2, 2]);
+  const legacy = { news: defaults.news, events: defaults.events, media: defaults.media };
+  assert.deepEqual(migrateContent(legacy), content);
+  assert.throws(() => validateContent({ ...content, businesses: [...content.businesses, content.businesses[0]] }));
+  assert.throws(() => validateContent({ ...content, terms: [{ label: '2030–2032' }] }));
+  assert.throws(() => validateContent({ ...content, documents: [] }));
 });
 
 test('authenticated draft, publishing, audit and durable data lifecycle', async () => {
@@ -61,6 +71,12 @@ test('authenticated draft, publishing, audit and durable data lifecycle', async 
     assert.equal(data.revision, 0);
     const content = structuredClone(data.draft);
     content.news[0].title = 'Approved community announcement';
+    content.businesses[0].name = 'Edited test business';
+    content.churches[0].name = 'Edited test church';
+    content.villages[0].name = 'Edited test village association';
+    content.terms.push({ label: '2028–2030' });
+    content.leadership.push({ term: '2028–2030', name: 'Test officer', nickname: '', role: 'Secretary', kind: 'Officer' });
+    content.documents[0].noteEn = 'Approved test document note';
     const save = await call('/api/admin/save', { ...editor, payload: { revision: 0, content } });
     assert.equal(save.status, 200);
     assert.match(await (await call('/public-content.js')).text(), /ZIOK_CONTENT = null/);
@@ -70,6 +86,9 @@ test('authenticated draft, publishing, audit and durable data lifecycle', async 
     assert.equal((await call('/api/admin/publish', { ...admin, payload: { revision: 0 } })).status, 409);
     assert.equal((await call('/api/admin/publish', { ...admin, payload: { revision: 1 } })).status, 200);
     assert.match(await (await call('/public-content.js')).text(), /Approved community announcement/);
+    const published = await (await call('/public-content.js')).text();
+    for (const value of ['Edited test business', 'Edited test church', 'Edited test village association', 'Test officer', 'Approved test document note']) assert.ok(published.includes(value));
+    assert.equal((await call('/documents/ziok-constitution-september-2024.pdf')).status, 200);
     const current = await (await call('/api/admin/state', admin)).json();
     assert.equal(current.revision, 2);
     assert.deepEqual(current.audit.map(x => x.action), ['publish', 'save draft']);
