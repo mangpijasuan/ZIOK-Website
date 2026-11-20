@@ -1,5 +1,8 @@
 // Zomi draft localization based on the supplied SZSF cleaned master dictionary.
 const zomiText = {
+  'Navigation':'Mun tuamtuam ah paihna',
+  'Main navigation':'Mun tuamtuam ah paihna bulpi',
+  'Website header':'Internet lai mun a tunglam',
   'Language':'Kampau',
   'Open navigation':'Mun tuamtuam ah paihna hong in',
   'Close navigation':'Mun tuamtuam ah paihna khak in',
