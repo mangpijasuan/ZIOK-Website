@@ -29,18 +29,6 @@ document.querySelectorAll('.modal').forEach(modal => {
     }
   });
 });
-function setMenu(open) {
-  $('links').classList.toggle('open', open);
-  $('menu').setAttribute('aria-expanded', String(open));
-  $('menu').setAttribute('aria-label', open ? 'Close navigation' : 'Open navigation');
-}
-$('menu').addEventListener('click', () => setMenu(!$('links').classList.contains('open')));
-document.querySelectorAll('.links a').forEach(a => a.addEventListener('click', () => setMenu(false)));
-document.addEventListener('keydown', event => {
-  if (event.key === 'Escape' && $('links').classList.contains('open')) {
-    setMenu(false); $('menu').focus();
-  }
-});
 document.querySelectorAll('[data-tab]').forEach(button => button.addEventListener('click', () => {
   document.querySelectorAll('[data-tab]').forEach(other => {
     other.classList.toggle('active', other === button);

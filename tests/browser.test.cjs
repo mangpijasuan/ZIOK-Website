@@ -151,6 +151,8 @@ for (const [name, viewport] of [['desktop', desktop], ['mobile', mobile]]) {
         await open(page, file);
         if (file.startsWith('reader')) await imageLoaded(page);
         assert.equal(await page.locator('h1').count(), 1, file);
+        assert.equal(await page.locator('#menu').isVisible(), true, file);
+        assert.equal(await page.locator('#nav-panel').isVisible(), false, file);
         const dimensions = await page.evaluate(() => ({ content: document.documentElement.scrollWidth, screen: innerWidth }));
         assert.ok(dimensions.content <= dimensions.screen + 2, `${file}: ${JSON.stringify(dimensions)}`);
       }
@@ -170,6 +172,29 @@ test('mobile menu opens, closes and navigates within the repository subpath', as
     assert.equal(new URL(page.url()).pathname, prefix + 'businesses.html');
     await page.locator('.brand').click();
     assert.equal(new URL(page.url()).pathname, prefix + 'index.html');
+  });
+});
+
+test('desktop sidebar contains all navigation links and supports keyboard dismissal', async () => {
+  await withPage(desktop, async page => {
+    await open(page, 'index.html');
+    const toggle = page.locator('#menu');
+    const panel = page.locator('#nav-panel');
+    assert.ok((await toggle.boundingBox()).x < (await page.locator('.brand').boundingBox()).x);
+    await toggle.click();
+    await panel.waitFor({ state: 'visible' });
+    assert.equal(await page.locator('#links a').count(), 12);
+    assert.ok((await panel.boundingBox()).x <= 1);
+    assert.equal(await page.locator('#menu-close').evaluate(element => element === document.activeElement), true);
+    await page.keyboard.press('Escape');
+    await panel.waitFor({ state: 'hidden' });
+    assert.equal(await toggle.evaluate(element => element === document.activeElement), true);
+    await toggle.click();
+    await page.locator('#links a[href="churches.html"]').click();
+    assert.equal(new URL(page.url()).pathname, prefix + 'churches.html');
+    await page.locator('#menu').click();
+    await page.locator('#links a[href="index.html#news"]').click();
+    assert.equal(new URL(page.url()).hash, '#news');
   });
 });
 

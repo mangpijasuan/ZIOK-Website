@@ -6,7 +6,7 @@ const { defaults, validateContent, migrateContent } = require('./content.cjs');
 const { verifyPassword, parseUsers } = require('./auth.cjs');
 
 const root = path.resolve(__dirname, '..');
-const publicFiles = new Set(['index.html', 'leadership.html', 'businesses.html', 'churches.html', 'villages.html', 'governance.html', 'reader.html', 'home.js', 'locale.js', 'leadership.js', 'businesses.js', 'churches.js', 'villages.js', 'governance.js', 'community-data.js', 'reader.js', 'media-config.js', 'shared.css', 'ziok-logo-160.webp', 'ziok-logo.png', 'robots.txt', 'sitemap.xml']);
+const publicFiles = new Set(['index.html', 'leadership.html', 'businesses.html', 'churches.html', 'villages.html', 'governance.html', 'reader.html', 'home.js', 'navigation.js', 'locale.js', 'leadership.js', 'businesses.js', 'churches.js', 'villages.js', 'governance.js', 'community-data.js', 'reader.js', 'media-config.js', 'shared.css', 'ziok-logo-160.webp', 'ziok-logo.png', 'robots.txt', 'sitemap.xml']);
 const mime = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.webp': 'image/webp', '.png': 'image/png', '.pdf': 'application/pdf', '.txt': 'text/plain; charset=utf-8', '.xml': 'application/xml; charset=utf-8' };
 const headers = {
   'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'strict-origin-when-cross-origin',
