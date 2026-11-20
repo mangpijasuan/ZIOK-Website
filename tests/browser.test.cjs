@@ -153,6 +153,22 @@ for (const [name, viewport] of [['desktop', desktop], ['mobile', mobile]]) {
         assert.equal(await page.locator('h1').count(), 1, file);
         assert.equal(await page.locator('#menu').isVisible(), true, file);
         assert.equal(await page.locator('#nav-panel').isVisible(), false, file);
+        const alignment = await page.evaluate(() => {
+          const edge = element => {
+            const rect = element.getBoundingClientRect();
+            const style = getComputedStyle(element);
+            return { left: rect.left + parseFloat(style.paddingLeft), right: rect.right - parseFloat(style.paddingRight) };
+          };
+          const nav = edge(document.querySelector('header .nav'));
+          const hero = edge(document.querySelector('.hero .wrap'));
+          const body = edge(document.querySelector('main.wrap, main .section .wrap'));
+          return { nav, hero, body };
+        });
+        for (const edge of ['left', 'right']) {
+          assert.ok(Math.abs(alignment.nav[edge] - alignment.hero[edge]) <= 1, file + ' header/hero ' + edge);
+          assert.ok(Math.abs(alignment.nav[edge] - alignment.body[edge]) <= 1, file + ' header/body ' + edge);
+        }
+        if (file === 'index.html') assert.equal(await page.locator('header .top').count(), 0);
         const dimensions = await page.evaluate(() => ({ content: document.documentElement.scrollWidth, screen: innerWidth }));
         assert.ok(dimensions.content <= dimensions.screen + 2, `${file}: ${JSON.stringify(dimensions)}`);
       }
