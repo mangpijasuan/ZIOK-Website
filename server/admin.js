@@ -11,6 +11,21 @@ const labels = { news: 'News item', events: 'Event', businesses: 'Business', chu
 const limits = { news: 50, events: 50, businesses: 200, churches: 200, villages: 200, terms: 20, leadership: 200, documents: 2 };
 const mediaFields = ['youtubeChannel', 'facebookPage', 'youtubeVideoId'];
 function message(value) { $('status').textContent = value; }
+function refreshCounts() {
+  document.querySelectorAll('[data-count]').forEach(node => { node.textContent = $(node.dataset.count + '-items').children.length; });
+}
+function updateDraftBadge() {
+  $('draft-status').textContent = dirty ? 'Unsaved changes' : 'Saved draft';
+  $('draft-status').dataset.dirty = String(dirty);
+}
+document.querySelectorAll('.workspace-link').forEach(link => link.addEventListener('click', () => {
+  const target = $(link.getAttribute('href').slice(1));
+  if (target?.tagName === 'DETAILS') target.open = true;
+  document.querySelectorAll('.sidebar a').forEach(item => {
+    if (item.getAttribute('href') === link.getAttribute('href')) item.setAttribute('aria-current', 'location');
+    else item.removeAttribute('aria-current');
+  });
+}));
 async function request(endpoint, payload) {
   const options = payload === undefined ? {} : { method: 'POST', headers: { 'Content-Type': 'application/json', ...(session ? { 'X-CSRF-Token': session.csrf } : {}) }, body: JSON.stringify(payload) };
   const response = await fetch('/api/admin/' + endpoint, options);
@@ -33,10 +48,14 @@ function addRow(type, data = {}) {
     if (type === 'documents' && name === 'type') input.readOnly = true;
     label.append(input); row.append(label);
   }
-  if (type !== 'documents') { const remove = document.createElement('button'); remove.type = 'button'; remove.textContent = 'Remove entry'; remove.addEventListener('click', () => { row.remove(); markDirty(); }); row.append(remove); }
+  if (type !== 'documents') { const remove = document.createElement('button'); remove.type = 'button'; remove.textContent = 'Remove entry'; remove.addEventListener('click', () => { row.remove(); refreshCounts(); markDirty(); }); row.append(remove); }
   group.append(row);
+  const title = row.querySelector('[data-field="name"], [data-field="title"], [data-field="label"], [data-field="type"]');
+  const updateLegend = () => { legend.textContent = title?.value.trim() || labels[type]; };
+  title?.addEventListener('input', updateLegend); updateLegend();
+  return row;
 }
-function markDirty() { dirty = true; $('publish').disabled = true; }
+function markDirty() { dirty = true; $('publish').disabled = true; updateDraftBadge(); }
 function snapshot() {
   const content = { media: Object.fromEntries(mediaFields.map(name => [name, $(name).value])) };
   for (const type of Object.keys(fields)) content[type] = [...$(type + '-items').children].map(row => Object.fromEntries([...row.querySelectorAll('[data-field]')].map(input => [input.dataset.field, input.value])));
@@ -49,13 +68,13 @@ async function load() {
   mediaFields.forEach(name => $(name).value = data.draft.media[name]);
   $('audit').replaceChildren();
   for (const record of data.audit) { const item = document.createElement('li'); item.textContent = `${record.at} — ${record.actor}: ${record.action} (revision ${record.revision})`; $('audit').append(item); }
-  dirty = false; $('publish').disabled = false;
+  dirty = false; $('publish').disabled = false; refreshCounts(); updateDraftBadge();
   message(`Loaded revision ${revision}. ${data.published ? 'Published content is active.' : 'Original public content is active.'}`);
 }
 async function signedIn() {
   session = await request('session'); await load();
   $('identity').textContent = `${session.username} · ${session.role}`;
-  $('publish').hidden = session.role !== 'admin'; $('audit-panel').hidden = session.role !== 'admin';
+  $('publish').hidden = session.role !== 'admin'; $('audit-panel').hidden = session.role !== 'admin'; $('audit-link').hidden = session.role !== 'admin';
   $('signin').hidden = true; $('dashboard').hidden = false; $('logout').hidden = false;
 }
 function signedOut() { session = null; $('dashboard').hidden = true; $('logout').hidden = true; $('signin').hidden = false; $('password').value = ''; }
@@ -66,7 +85,7 @@ async function busy(button, action) {
 }
 $('login').addEventListener('submit', event => { event.preventDefault(); busy(event.submitter, async () => { await request('login', { username: $('username').value, password: $('password').value }); $('password').value = ''; await signedIn(); }); });
 $('logout').addEventListener('click', () => busy($('logout'), async () => { await request('logout', {}); signedOut(); message('Signed out.'); }));
-document.querySelectorAll('[data-add]').forEach(button => button.addEventListener('click', () => { const filter = $('filter-' + button.dataset.add); if (filter) { filter.value = ''; filter.dispatchEvent(new Event('input')); } addRow(button.dataset.add); markDirty(); }));
+document.querySelectorAll('[data-add]').forEach(button => button.addEventListener('click', () => { const filter = $('filter-' + button.dataset.add); if (filter) { filter.value = ''; filter.dispatchEvent(new Event('input')); } const row = addRow(button.dataset.add); if (row) { refreshCounts(); markDirty(); row.querySelector('[data-field]')?.focus(); } }));
 document.querySelectorAll('[data-filter]').forEach(input => input.addEventListener('input', () => {
   const query = input.value.toLowerCase();
   for (const row of $(input.dataset.filter + '-items').children) row.hidden = ![...row.querySelectorAll('[data-field]')].some(field => field.value.toLowerCase().includes(query));
