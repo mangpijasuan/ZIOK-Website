@@ -1,5 +1,13 @@
 // Zomi draft localization based on the supplied SZSF cleaned master dictionary.
 const zomiText = {
+  'Skip to content':'A thu bulpi ah pai in',
+  'Facebook · Updates coming soon':'Facebook · Thuthak hong om ding',
+  'YouTube · Updates coming soon':'YouTube · Thuthak hong om ding',
+  'Community videos will be published here.':'Kipawlna video te hiah koih ding hi.',
+  'Community photos will be published here.':'Kipawlna limte hiah koih ding hi.',
+  'YouTube · Community videos':'YouTube · Kipawlna video te',
+  'Facebook · Community updates':'Facebook · Kipawlna thuthak',
+  'Visit YouTube channel':'YouTube channel en in',
   'Previous':'Amasa','Next':'Azom','Fit width':'Laimai zaizawng','Constitution':'Thukhunpi','Bylaws':'Ngeina Dante','This page could not be loaded. Please retry or download the PDF.':'Hiai laimai hong kilang theilo hi. En kik in ahihkeileh PDF la in.',
   'Village Associations':'Khua Kipawlna Minte','Connecting families in Tulsa with their village roots in Tedim Township, Chin State, Myanmar.':'Myanmar, Chin State, Tedim Township sunga khuate pan hong pai Tulsa a innkuante kizopna.','Search village associations':'Khua kipawlna zong in','associations':'kipawlnate','No associations match your search.':'Na zonna tawh kituak kipawlna omlo hi.','To add or update an association, contact':'Kipawlna min behlap ahihkeileh bawlphat dingin kizopna',
   'Churches':'Pawlpite','Church Directory':'Pawlpi Minte','Churches and pastors in the Zomi community.':'Zomi kipawlna sung a pawlpite leh pawlpi makaite.','Search churches or pastors':'Pawlpi ahihkeileh pawlpi makai zong in','churches':'pawlpite','Church Pastor':'Pawlpi Pastor','No churches match your search.':'Na zonna tawh kituak pawlpi omlo hi.','To add or update a church listing, contact':'Pawlpi min behlap ahihkeileh bawlphat dingin kizopna',
@@ -23,7 +31,8 @@ const zomiText = {
   'YouTube · URL saved, awaiting sync':'YouTube · Link kikeem zo, kizopna ngak lai','Facebook · URL saved, awaiting sync':'Facebook · Link kikeem zo, kizopna ngak lai','Facebook Page saved. Automatic photo import is not enabled.':'Facebook Page kikeem zo hi. Amah leh amah lim laklutna kipan nailo hi.','Visit Facebook Page':'Facebook Page en in','Please enter valid HTTPS YouTube and Facebook URLs.':'HTTPS YouTube leh Facebook link a maan gelh in.','Settings saved. Automatic synchronization is awaiting backend setup.':'Geelna kikeem zo hi. Amah leh amah kizopna ding system geelna ngak lai hi.'
 };
 (() => {
-  let isZomi = localStorage.getItem('ziok-language') === 'zo';
+  let isZomi = false;
+  try { isZomi = localStorage.getItem('ziok-language') === 'zo'; } catch { /* Storage may be disabled. */ }
   const originals = new WeakMap();
   function apply(root = document.body) {
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
@@ -47,7 +56,7 @@ const zomiText = {
   const language = document.getElementById('lang');
   if (language) language.addEventListener('change', () => {
     isZomi = language.value === 'zo';
-    localStorage.setItem('ziok-language', isZomi ? 'zo' : 'en');
+    try { localStorage.setItem('ziok-language', isZomi ? 'zo' : 'en'); } catch { /* Keep language for this page. */ }
     apply();
   });
   apply();

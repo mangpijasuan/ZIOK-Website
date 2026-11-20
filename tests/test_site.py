@@ -1,0 +1,83 @@
+import re
+import subprocess
+import unittest
+from html.parser import HTMLParser
+from pathlib import Path
+from urllib.parse import urlsplit, unquote
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+class Page(HTMLParser):
+    def __init__(self, path):
+        super().__init__()
+        self.ids, self.links, self.options, self.scripts = [], [], [], []
+        self.inline = False
+        self.feed(path.read_text())
+
+    def handle_starttag(self, tag, attrs):
+        attrs = dict(attrs)
+        if 'id' in attrs:
+            self.ids.append(attrs['id'])
+        for key in ('href', 'src'):
+            if key in attrs:
+                self.links.append(attrs[key])
+        if tag == 'option':
+            self.options.append(attrs)
+        if tag == 'script' and 'src' not in attrs:
+            self.inline = True
+
+    def handle_endtag(self, tag):
+        if tag == 'script':
+            self.inline = False
+
+    def handle_data(self, data):
+        if self.inline:
+            self.scripts.append(data)
+
+
+class SiteTests(unittest.TestCase):
+    def test_links_and_page_ids(self):
+        for file in ROOT.glob('*.html'):
+            page = Page(file)
+            self.assertEqual(len(page.ids), len(set(page.ids)), file.name)
+            for link in page.links:
+                url = urlsplit(link)
+                if url.scheme or url.netloc:
+                    continue
+                self.assertFalse(url.path.startswith('/'), (file.name, link))
+                target = file.parent / unquote(url.path) if url.path else file
+                self.assertTrue(target.is_file(), (file.name, link))
+                if url.fragment and target.suffix == '.html':
+                    self.assertIn(url.fragment, Page(target).ids, (file.name, link))
+
+    def test_all_document_assets(self):
+        for section, count, padding in [('constitution', 9, 1), ('bylaws', 12, 2)]:
+            pdf = ROOT / 'documents' / f'ziok-{section}-september-2024.pdf'
+            self.assertTrue(pdf.read_bytes().startswith(b'%PDF'))
+            for number in range(1, count + 1):
+                image = ROOT / 'documents' / section / f'page-{number:0{padding}d}.png'
+                self.assertTrue(image.read_bytes().startswith(b'\x89PNG\r\n\x1a\n'), image.name)
+
+    def test_javascript_syntax(self):
+        for file in ROOT.glob('*.js'):
+            subprocess.run(['node', '--check', str(file)], check=True)
+        for file in ROOT.glob('*.html'):
+            for script in Page(file).scripts:
+                subprocess.run(['node', '--check'], input=script, text=True, check=True)
+
+    def test_category_options_have_stable_values(self):
+        page = Page(ROOT / 'businesses.html')
+        self.assertTrue(all('value' in option for option in page.options))
+        self.assertIn('Markets', [opt['value'] for opt in page.options])
+
+    def test_media_queries_and_metadata(self):
+        for file in ROOT.glob('*.html'):
+            source = file.read_text()
+            self.assertNotRegex(source, r'(?<!@media)\((?:min|max)-width:')
+            self.assertIn('name="description"', source)
+            self.assertIn('class="skip-link"', source)
+
+
+if __name__ == '__main__':
+    unittest.main(verbosity=2)
