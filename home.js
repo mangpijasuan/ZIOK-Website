@@ -2,13 +2,17 @@ const $ = id => document.getElementById(id);
 let previousFocus;
 function openModal(id) {
   previousFocus = document.activeElement;
+  document.querySelectorAll('body > header, body > main, body > footer, body > .skip-link').forEach(element => element.inert = true);
   $(id).classList.add('open');
   $(id).querySelector('button').focus();
 }
 function closeModal(id) {
   $(id).classList.remove('open');
+  document.querySelectorAll('body > header, body > main, body > footer, body > .skip-link').forEach(element => element.inert = false);
   previousFocus?.focus();
 }
+document.querySelectorAll('[data-open-dialog]').forEach(button => button.addEventListener('click', () => openModal(button.dataset.openDialog)));
+document.querySelectorAll('[data-close-dialog]').forEach(button => button.addEventListener('click', () => closeModal(button.dataset.closeDialog)));
 document.querySelectorAll('.modal').forEach(modal => {
   modal.addEventListener('click', event => {
     if (event.target === modal) closeModal(modal.id);

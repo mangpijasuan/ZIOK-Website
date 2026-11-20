@@ -77,6 +77,14 @@ class SiteTests(unittest.TestCase):
             self.assertNotRegex(source, r'(?<!@media)\((?:min|max)-width:')
             self.assertIn('name="description"', source)
             self.assertIn('class="skip-link"', source)
+            self.assertIn('href="shared.css"', source)
+            self.assertNotRegex(source, r'\son[a-z]+\s*=')
+
+    def test_optimized_logo(self):
+        logo = ROOT / 'ziok-logo-160.webp'
+        self.assertEqual(logo.read_bytes()[8:12], b'WEBP')
+        self.assertLess(logo.stat().st_size, 20_000)
+        self.assertTrue((ROOT / 'ziok-logo.png').is_file())
 
 
 if __name__ == '__main__':
