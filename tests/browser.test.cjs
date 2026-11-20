@@ -90,9 +90,17 @@ test('administrator can sign in, save bilingual draft and publish it', async () 
     await page.locator('#password').fill(password);
     await page.locator('#login button').click();
     await page.locator('#dashboard').waitFor({ state: 'visible' });
+    await textIs(page, '[data-count="businesses"]', '42');
+    await textIs(page, '[data-count="churches"]', '18');
+    await textIs(page, '#draft-status', 'Saved draft');
+    await page.setViewportSize(mobile);
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2));
+    await page.setViewportSize(desktop);
     await page.locator('#news-items [data-field="title"]').first().fill('Test announcement');
     await page.locator('#news-items [data-field="titleZo"]').first().fill('Entelna thuthak');
-    await page.getByText('Business directory', { exact: true }).click();
+    await page.locator('.sidebar a[href="#module-businesses"]').click();
+    assert.equal(await page.locator('#module-businesses').getAttribute('open'), '');
+    await textIs(page, '#draft-status', 'Unsaved changes');
     await page.locator('#businesses-items [data-field="name"]').first().fill('Test business listing');
     await page.getByText('Church directory', { exact: true }).click();
     await page.locator('#churches-items [data-field="name"]').first().fill('Test church listing');
@@ -110,6 +118,7 @@ test('administrator can sign in, save bilingual draft and publish it', async () 
     await page.locator('#documents-items [data-field="noteEn"]').first().fill('Test governance note');
     await page.locator('#editor button[type="submit"]').click();
     await textIs(page, '#status', 'Draft saved.');
+    await textIs(page, '#draft-status', 'Saved draft');
     const publicPage = await context.newPage();
     await publicPage.goto(origin + '/');
     assert.equal(await publicPage.locator('#newsgrid h3').first().textContent(), 'A home for the Zomi community');
