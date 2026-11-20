@@ -4,7 +4,7 @@ Complete static website export, November 20, 2026. The HTML, CSS and JavaScript 
 
 ## Run locally
 
-1. Extract the ZIP file.
+1. Clone the repository or extract the ZIP file.
 2. Open a terminal in `ZIOK-Website`.
 3. Run `python -m http.server 8000` (or `python3 -m http.server 8000`).
 4. Visit `http://localhost:8000` in your browser.
@@ -29,6 +29,14 @@ Upload the contents of this folder to the document root of any static web host (
 
 ## Current limitations
 
-This is the current static application. Media settings are saved in the visitor's browser. Automatic Facebook and YouTube synchronization is not yet enabled; it requires a backend and authorized API access. Online membership, donations, and account management are not enabled. No hosting credentials, tokens or API keys are included.
+This is a static application. Official public media links are configured centrally in `media-config.js`, committed through GitHub, and published on deployment. Leave unconfirmed values empty. Never include private credentials in this file. Automatic Facebook and YouTube synchronization requires a backend and authorized API access. Online membership, donations, and account management are not enabled. No hosting credentials, tokens or API keys are included.
+
+## Validation and deployment checklist
+
+- Run `python -m unittest discover -s tests -v` with Python 3 and Node.js installed. GitHub Actions runs the same checks on pushes and pull requests.
+- Verify the site at desktop and mobile widths and in English and Zomi, including both document readers and directory filters.
+- On GitHub Pages, serve the root of the branch and configure `ziok.org` only when the domain is ready. Relative links also support a repository subpath.
+- `robots.txt` and `sitemap.xml` assume `https://ziok.org/` is the final public address; update them if it changes.
+- Before launch, enable HTTPS and configure host-supported security headers (including a suitable Content Security Policy, allowing the approved YouTube embed if used), verify content publication permissions, and review directory contact details. These are hosting and organizational tasks, not automatically enabled by this static repository.
 
 Developer: MJ — https://mangpijasuan.github.io/MJ/
