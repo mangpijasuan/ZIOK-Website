@@ -69,5 +69,14 @@ function validateContent(input) {
   } };
 }
 // Existing Phase 4 state has no community fields; preserve its published homepage data.
-function migrateContent(input) { return validateContent({ ...structuredClone(communityDefaults), ...input }); }
+// Refresh only the untouched legacy church seed; preserve administrator-customized lists.
+const legacyChurches = [{"name":"Bethel EBC","pastor":"Rev. Zam Cin Kap"},{"name":"Bethel UPC","pastor":"Pastor Suan Go Cin"},{"name":"Bethel Worship Center","pastor":"Rev. Kap Lian Tuang"},{"name":"EBC Tulsa","pastor":"Rev. Lian Za Tuang"},{"name":"Far East Mission Church","pastor":"Rev. Dr. Cin Khaw Kham"},{"name":"Full Gospel Assembly International","pastor":"Rev. Dr. Dam Suan Mung"},{"name":"Full Life Church","pastor":"Rev. Dr. Nang Khen Khup"},{"name":"Gateway International Church","pastor":"Rev. Dr. Suan Za Lian"},{"name":"Hosanna Mission Church","pastor":"Pastor Thawng Kim"},{"name":"Laipian Pasian Paaina Pawlpi","pastor":"Pa Haupi"},{"name":"Myanmar Adventist Fellowship","pastor":"Sia Lianno"},{"name":"Myanmar Christian Church","pastor":"Rev. Dr. Kham Khan Khai"},{"name":"Myanmar Zomi Baptist Church","pastor":"Pastor Hau Suan Khai"},{"name":"Shalom Baptist Church","pastor":"Pastor Sangpi"},{"name":"St. Catherine of Alexandria","pastor":"Father. Robert Kim Pu"},{"name":"Tulsa Baptist Church","pastor":"Sia Paubawi"},{"name":"ZBCM of Tulsa","pastor":"Rev. Dr. Ngo Suanthang Guite"},{"name":"Zomi SDA Tulsa","pastor":"Pastor Thlenga"}];
+function churchSignature(list) {
+  return Array.isArray(list) ? JSON.stringify(list.map(item => [item.name,item.pastor]).sort((a,b)=>a[0].localeCompare(b[0]))) : '';
+}
+function migrateContent(input) {
+  const merged = { ...structuredClone(communityDefaults), ...input };
+  if (churchSignature(merged.churches) === churchSignature(legacyChurches)) merged.churches = structuredClone(communityDefaults.churches);
+  return validateContent(merged);
+}
 module.exports = { defaults, validateContent, migrateContent };
