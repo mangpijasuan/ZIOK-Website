@@ -91,7 +91,7 @@ test('administrator can sign in, save bilingual draft and publish it', async () 
     await page.locator('#login button').click();
     await page.locator('#dashboard').waitFor({ state: 'visible' });
     await textIs(page, '[data-count="businesses"]', '42');
-    await textIs(page, '[data-count="churches"]', '18');
+    await textIs(page, '[data-count="churches"]', '21');
     await textIs(page, '#draft-status', 'Saved draft');
     await page.setViewportSize(mobile);
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2));
@@ -134,7 +134,7 @@ test('administrator can sign in, save bilingual draft and publish it', async () 
     await textIs(publicPage, '#result-count', '1 / 42');
     await publicPage.goto(origin + '/churches.html');
     await publicPage.locator('#church-search').fill('Test church listing');
-    await textIs(publicPage, '#church-count', '1 / 18');
+    await textIs(publicPage, '#church-count', '1 / 21');
     await publicPage.goto(origin + '/villages.html');
     await publicPage.locator('#village-search').fill('Test village listing');
     await textIs(publicPage, '#village-count', '1 / 49');
@@ -266,7 +266,7 @@ test('public pages have no automated WCAG A/AA violations', async () => {
 test('church and village directories return correct search results', async () => {
   await withPage(desktop, async page => {
     for (const [file, input, count, expected, query, result, empty] of [
-      ['churches.html', '#church-search', '#church-count', '18 / 18', 'Bethel EBC', '1 / 18', '#church-empty'],
+      ['churches.html', '#church-search', '#church-count', '21 / 21', 'Bethel EBC', '1 / 21', '#church-empty'],
       ['villages.html', '#village-search', '#village-count', '49 / 49', 'Buanli', '1 / 49', '#village-empty']
     ]) {
       await open(page, file);

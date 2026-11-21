@@ -22,7 +22,7 @@ test('password configuration and content validation', async () => {
 
 test('community defaults and migration preserve original records, reject invalid changes', () => {
   const content = validateContent(defaults);
-  assert.deepEqual([content.businesses.length, content.churches.length, content.villages.length, content.leadership.length, content.terms.length, content.documents.length], [42, 18, 49, 14, 2, 2]);
+  assert.deepEqual([content.businesses.length, content.churches.length, content.villages.length, content.leadership.length, content.terms.length, content.documents.length], [42, 21, 49, 14, 2, 2]);
   const legacy = { news: defaults.news, events: defaults.events, media: defaults.media };
   assert.deepEqual(migrateContent(legacy), content);
   assert.throws(() => validateContent({ ...content, businesses: [...content.businesses, content.businesses[0]] }));
@@ -98,4 +98,12 @@ test('authenticated draft, publishing, audit and durable data lifecycle', async 
     assert.match(await (await call('/public-content.js')).text(), /Approved community announcement/);
     assert.equal((await call('/api/admin/state', editor)).status, 401);
   } finally { await close(); await fs.rm(directory, { recursive: true, force: true }); }
+});
+
+
+test('legacy church seed refresh preserves customized directories', () => {
+  const legacy = [{"name":"Bethel EBC","pastor":"Rev. Zam Cin Kap"},{"name":"Bethel UPC","pastor":"Pastor Suan Go Cin"},{"name":"Bethel Worship Center","pastor":"Rev. Kap Lian Tuang"},{"name":"EBC Tulsa","pastor":"Rev. Lian Za Tuang"},{"name":"Far East Mission Church","pastor":"Rev. Dr. Cin Khaw Kham"},{"name":"Full Gospel Assembly International","pastor":"Rev. Dr. Dam Suan Mung"},{"name":"Full Life Church","pastor":"Rev. Dr. Nang Khen Khup"},{"name":"Gateway International Church","pastor":"Rev. Dr. Suan Za Lian"},{"name":"Hosanna Mission Church","pastor":"Pastor Thawng Kim"},{"name":"Laipian Pasian Paaina Pawlpi","pastor":"Pa Haupi"},{"name":"Myanmar Adventist Fellowship","pastor":"Sia Lianno"},{"name":"Myanmar Christian Church","pastor":"Rev. Dr. Kham Khan Khai"},{"name":"Myanmar Zomi Baptist Church","pastor":"Pastor Hau Suan Khai"},{"name":"Shalom Baptist Church","pastor":"Pastor Sangpi"},{"name":"St. Catherine of Alexandria","pastor":"Father. Robert Kim Pu"},{"name":"Tulsa Baptist Church","pastor":"Sia Paubawi"},{"name":"ZBCM of Tulsa","pastor":"Rev. Dr. Ngo Suanthang Guite"},{"name":"Zomi SDA Tulsa","pastor":"Pastor Thlenga"}];
+  assert.deepEqual(migrateContent({ ...defaults, churches: legacy }).churches, defaults.churches);
+  const customized = legacy.map((item,index) => index === 0 ? {...item, pastor: 'Custom pastor'} : item);
+  assert.deepEqual(migrateContent({ ...defaults, churches: customized }).churches, customized);
 });

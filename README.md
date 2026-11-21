@@ -92,7 +92,7 @@ For static hosting, publish the public HTML, JavaScript, CSS, logo, `robots.txt`
 - `index.html`: community homepage, events, contact information and media setup
 - `leadership.html`: board of directors and terms
 - `businesses.html`, `businesses.js`: 42 business listings
-- `churches.html`, `churches.js`: 18 church listings
+- `churches.html`, `churches.js`: 21 church listings
 - `villages.html`, `villages.js`: 49 village associations
 - `governance.html`, `reader.html`, `reader.js`: document directory and page reader
 - `documents/`: original constitution and bylaws PDFs and all 21 rendered pages
@@ -120,7 +120,7 @@ This is a static application. Official public media links are configured central
 
 The static deployment remains supported; the portal requires the optional Node server. It is not available on GitHub Pages or other static-only hosting. The portal supports English/Zomi news and event drafts, public media configuration, business/church/village directories, board terms and members, governance document notes, editor/admin roles, explicit publication, revision conflict detection, and recent audit history. The official governance PDFs and page images remain immutable in this release; replacing an approved document or rendering a new version requires a reviewed repository update. Automatic social synchronization remains a future module.
 
-The original 42 businesses, 18 churches, 49 village associations and 14 board members are seeded from `community-data.js`. Phase 4 persisted state is migrated on startup without discarding previously saved homepage content. Directory and leadership edits share the same private draft and administrator-only publication workflow. Confirm that names, contact details and any new governance notes have organizational approval before publishing.
+The original 42 businesses, 21 churches, 49 village associations and 14 board members are seeded from `community-data.js`. Phase 4 persisted state is migrated on startup without discarding previously saved homepage content. The updated church directory replaces the untouched original church seed; custom administrator church edits are preserved. Directory and leadership edits share the same private draft and administrator-only publication workflow. Confirm that names, contact details and any new governance notes have organizational approval before publishing.
 
 For each officer, create a unique password hash using `node server/hash-password.cjs` with the password supplied through stdin (use a protected terminal input; never put a password on a command line). Each account must have a unique username, role `admin` or `editor`, and the resulting `passwordHash`. Supply these values via the protected `ZIOK_USERS_JSON` environment variable as a JSON array; do not commit the configuration. At least one admin is required. No default account or password is provided.
 

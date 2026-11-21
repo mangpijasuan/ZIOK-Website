@@ -272,11 +272,15 @@ const ZIOK_COMMUNITY_DEFAULTS = {
       "pastor": "Rev. Lian Za Tuang"
     },
     {
+      "name": "Tulsa Baptist Church",
+      "pastor": "Pastor Suang Khen Pau"
+    },
+    {
       "name": "Far East Mission Church",
       "pastor": "Rev. Dr. Cin Khaw Kham"
     },
     {
-      "name": "Full Gospel Assembly International",
+      "name": "Full Gospel Assembly International Ministry",
       "pastor": "Rev. Dr. Dam Suan Mung"
     },
     {
@@ -289,15 +293,7 @@ const ZIOK_COMMUNITY_DEFAULTS = {
     },
     {
       "name": "Hosanna Mission Church",
-      "pastor": "Pastor Thawng Kim"
-    },
-    {
-      "name": "Laipian Pasian Paaina Pawlpi",
-      "pastor": "Pa Haupi"
-    },
-    {
-      "name": "Myanmar Adventist Fellowship",
-      "pastor": "Sia Lianno"
+      "pastor": "Rev. Thawng Kim"
     },
     {
       "name": "Myanmar Christian Church",
@@ -309,23 +305,39 @@ const ZIOK_COMMUNITY_DEFAULTS = {
     },
     {
       "name": "Shalom Baptist Church",
-      "pastor": "Pastor Sangpi"
+      "pastor": "Rev. Thiam Lian Sang"
     },
     {
-      "name": "St. Catherine of Alexandria",
-      "pastor": "Father. Robert Kim Pu"
-    },
-    {
-      "name": "Tulsa Baptist Church",
-      "pastor": "Sia Paubawi"
+      "name": "Zomi-Catholic Community of St. Catherine Parish",
+      "pastor": "Rev. Fr. Robert Kimpu"
     },
     {
       "name": "ZBCM of Tulsa",
       "pastor": "Rev. Dr. Ngo Suanthang Guite"
     },
     {
+      "name": "St. Pius X Myanmar Catholic Community",
+      "pastor": "Pa Do Khan Khai"
+    },
+    {
+      "name": "Laipian Pasian Paaina Pawlpi",
+      "pastor": "Pa Haupi"
+    },
+    {
       "name": "Zomi SDA Tulsa",
-      "pastor": "Pastor Thlenga"
+      "pastor": "Associate Pastor Gin Lian Lam Thang"
+    },
+    {
+      "name": "Myanmar Adventist Fellowship Church",
+      "pastor": "Pastor Mang Suan Lian"
+    },
+    {
+      "name": "Church of Jesus Christ Myanmar",
+      "pastor": "Rev. Cin Sian Pal"
+    },
+    {
+      "name": "Life Emanuel Church",
+      "pastor": "Pastor Khualpu"
     }
   ],
   "villages": [
