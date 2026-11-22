@@ -45,8 +45,10 @@ class SiteTests(unittest.TestCase):
                 url = urlsplit(link)
                 if url.scheme or url.netloc:
                     continue
-                self.assertFalse(url.path.startswith('/'), (file.name, link))
-                target = file.parent / unquote(url.path) if url.path else file
+                # 404.html is served at any URL depth, so it must use root-absolute links.
+                if url.path:
+                    self.assertEqual(url.path.startswith('/'), file.name == '404.html', (file.name, link))
+                target = file.parent / unquote(url.path.lstrip('/')) if url.path else file
                 self.assertTrue(target.is_file(), (file.name, link))
                 if url.fragment and target.suffix == '.html':
                     self.assertIn(url.fragment, Page(target).ids, (file.name, link))
@@ -77,8 +79,25 @@ class SiteTests(unittest.TestCase):
             self.assertNotRegex(source, r'(?<!@media)\((?:min|max)-width:')
             self.assertIn('name="description"', source)
             self.assertIn('class="skip-link"', source)
-            self.assertIn('href="shared.css"', source)
+            self.assertIn('href="/shared.css"' if file.name == '404.html' else 'href="shared.css"', source)
             self.assertNotRegex(source, r'\son[a-z]+\s*=')
+
+    def test_copyright_year_updates_on_every_page_with_a_footer(self):
+        navigation = (ROOT / 'navigation.js').read_text()
+        self.assertIn('data-copyright-year', navigation)
+        for file in ROOT.glob('*.html'):
+            source = file.read_text()
+            if 'data-copyright-year' in source:
+                self.assertIn('navigation.js', source, file.name)
+        self.assertIn('data-copyright-year', (ROOT / '404.html').read_text())
+
+    def test_directory_notices_have_zomi_translations(self):
+        locale = (ROOT / 'locale.js').read_text()
+        for name in ('businesses', 'churches', 'villages'):
+            source = (ROOT / f'{name}.html').read_text()
+            for sentence in re.findall(r'<p class="note">(.*?)</p>', source):
+                for text in re.findall(r'<span>(.*?)</span>', sentence):
+                    self.assertIn(f"'{text}':", locale, (name, text))
 
     def test_optimized_logo(self):
         logo = ROOT / 'ziok-logo-160.webp'

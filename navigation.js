@@ -3,6 +3,7 @@
   const toggle = document.getElementById('menu');
   const panel = document.getElementById('nav-panel');
   const close = document.getElementById('menu-close');
+  if (!toggle || !panel || !close) return; // Pages without the drawer, such as the 404 page.
   function reflect(open) {
     toggle.setAttribute('aria-expanded', String(open));
     toggle.setAttribute('aria-label', open ? 'Close navigation' : 'Open navigation');

@@ -4,6 +4,7 @@ const path = require('node:path');
 const { randomBytes, timingSafeEqual } = require('node:crypto');
 const { defaults, validateContent, migrateContent } = require('./content.cjs');
 const { verifyPassword, parseUsers } = require('./auth.cjs');
+const { parseTrustedProxies, clientAddress } = require('./proxy.cjs');
 
 const root = path.resolve(__dirname, '..');
 const publicFiles = new Set(['index.html', 'leadership.html', 'businesses.html', 'churches.html', 'villages.html', 'governance.html', 'reader.html', 'home.js', 'navigation.js', 'locale.js', 'leadership.js', 'businesses.js', 'churches.js', 'villages.js', 'governance.js', 'community-data.js', 'reader.js', 'media-config.js', 'shared.css', 'ziok-logo-160.webp', 'ziok-logo.png', 'robots.txt', 'sitemap.xml']);
@@ -16,6 +17,7 @@ const headers = {
 const token = () => randomBytes(32).toString('hex');
 const ttl = 8 * 60 * 60 * 1000;
 const limitWindow = 15 * 60 * 1000;
+const accountFailureLimit = 10;
 function equalToken(a, b) {
   return typeof a === 'string' && /^[a-f0-9]{64}$/.test(a) && typeof b === 'string' && /^[a-f0-9]{64}$/.test(b) && timingSafeEqual(Buffer.from(a), Buffer.from(b));
 }
@@ -40,15 +42,23 @@ function persist(file, state) {
   try { fs.writeFileSync(temp, JSON.stringify(state, null, 2), { mode: 0o600, flag: 'wx' }); fs.renameSync(temp, file); }
   finally { if (fs.existsSync(temp)) fs.unlinkSync(temp); }
 }
-function sendFile(req, res, file, cache = 'no-cache') {
+function sendFile(req, res, file, cache = 'no-cache', status = 200) {
   if (!fs.existsSync(file) || !fs.statSync(file).isFile()) { json(res, 404, { error: 'Not found' }); return; }
-  res.writeHead(200, { 'Content-Type': mime[path.extname(file)], 'Cache-Control': cache, 'Content-Length': fs.statSync(file).size });
+  res.writeHead(status, { 'Content-Type': mime[path.extname(file)], 'Cache-Control': cache, 'Content-Length': fs.statSync(file).size });
   if (req.method === 'HEAD') res.end(); else fs.createReadStream(file).pipe(res);
 }
 
-function createApp({ users, stateFile, origin, secureCookies = true }) {
+// Browsers navigating to an unknown page get the branded 404 page; API and
+// non-HTML requests keep the JSON response.
+function notFound(req, res, pathname) {
+  const wantsPage = !pathname.startsWith('/api/') && (req.headers.accept || '').includes('text/html');
+  if (wantsPage) return sendFile(req, res, path.join(root, '404.html'), 'no-cache', 404);
+  return json(res, 404, { error: 'Not found' });
+}
+
+function createApp({ users, stateFile, origin, secureCookies = true, trustedProxies = parseTrustedProxies(''), hsts = '' }) {
   let state = initialState(stateFile);
-  const sessions = new Map(), attempts = new Map();
+  const sessions = new Map(), attempts = new Map(), accountFailures = new Map();
   let pendingLogins = 0;
   const cookieName = secureCookies ? '__Host-ziok-session' : 'ziok-local-session';
   const cookie = (value, age) => `${cookieName}=${value}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${age}${secureCookies ? '; Secure' : ''}`;
@@ -64,6 +74,7 @@ function createApp({ users, stateFile, origin, secureCookies = true }) {
   }
   return http.createServer(async (req, res) => {
     for (const [key, value] of Object.entries(headers)) res.setHeader(key, value);
+    if (hsts) res.setHeader('Strict-Transport-Security', hsts);
     try {
       const pathname = new URL(req.url, origin).pathname;
       const method = req.method;
@@ -72,15 +83,26 @@ function createApp({ users, stateFile, origin, secureCookies = true }) {
       if (pathname === '/api/admin/login' && method === 'POST') {
         let input; try { input = await body(req); } catch { return json(res, 400, { error: 'Invalid request' }); }
         const username = typeof input?.username === 'string' && /^[A-Za-z0-9_.-]{1,64}$/.test(input.username) ? input.username : '';
-        const now = Date.now(), key = req.socket.remoteAddress || 'unknown';
+        const now = Date.now(), key = clientAddress(req, trustedProxies);
         for (const [id, entry] of attempts) if (entry.until <= now) attempts.delete(id);
+        for (const [id, entry] of accountFailures) if (entry.until <= now) accountFailures.delete(id);
+        // Per-account limit, keyed on the submitted name whether or not it exists, so a lock reveals nothing about which accounts are real.
+        if ((accountFailures.get(username)?.count || 0) >= accountFailureLimit) return json(res, 429, { error: 'Try again later' });
         if (attempts.size >= 1000 && !attempts.has(key)) return json(res, 429, { error: 'Try again later' });
         const entry = attempts.get(key) || { count: 0, until: now + limitWindow };
         if (entry.count >= 20 || pendingLogins >= 4) return json(res, 429, { error: 'Try again later' });
         entry.count++; attempts.set(key, entry); pendingLogins++;
         const user = users.get(username);
         let valid; try { valid = await verifyPassword(input?.password, user?.passwordHash); } finally { pendingLogins--; }
-        if (!user || !valid) return json(res, 401, { error: 'Invalid credentials' });
+        if (!user || !valid) {
+          const failures = accountFailures.get(username) || { count: 0, until: now + limitWindow };
+          if (failures.count > 0 || accountFailures.size < 1000) {
+            failures.count++; accountFailures.set(username, failures);
+            if (failures.count === accountFailureLimit) console.warn(`Sign-in for account "${username}" locked for 15 minutes after repeated failures`);
+          }
+          return json(res, 401, { error: 'Invalid credentials' });
+        }
+        attempts.delete(key); accountFailures.delete(username);
         for (const [id, session] of sessions) if (session.expires <= now) sessions.delete(id);
         if (sessions.size >= 1000) return json(res, 503, { error: 'Try again later' });
         const previous = sessionFor(req); if (previous) sessions.delete(previous.id);
@@ -93,6 +115,17 @@ function createApp({ users, stateFile, origin, secureCookies = true }) {
         if (method === 'POST' && !equalToken(req.headers['x-csrf-token'], session.csrf)) return json(res, 403, { error: 'Invalid request token' });
         if (pathname === '/api/admin/session' && method === 'GET') return json(res, 200, { username: session.username, role: session.role, csrf: session.csrf });
         if (pathname === '/api/admin/state' && method === 'GET') return json(res, 200, { revision: state.revision, draft: state.draft, published: state.published !== null, audit: session.role === 'admin' ? state.audit.slice(-100).reverse() : [] });
+        if (pathname === '/api/admin/network' && method === 'GET') {
+          if (session.role !== 'admin') return json(res, 403, { error: 'Administrators only' });
+          // Lets an administrator confirm the proxy settings: connectingAddress is the proxy to trust, clientAddress should be the visitor's own public address.
+          return json(res, 200, { connectingAddress: clientAddress(req, parseTrustedProxies('')), clientAddress: clientAddress(req, trustedProxies), forwardedFor: req.headers['x-forwarded-for'] || null, trustedProxiesConfigured: trustedProxies.configured });
+        }
+        if (pathname === '/api/admin/backup' && method === 'GET') {
+          if (session.role !== 'admin') return json(res, 403, { error: 'Administrators only' });
+          const name = `ziok-content-r${state.revision}-${new Date().toISOString().slice(0, 10)}.json`;
+          res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Content-Disposition': `attachment; filename="${name}"`, 'Cache-Control': 'no-store' });
+          return res.end(JSON.stringify(state, null, 2));
+        }
         if (pathname === '/api/admin/logout' && method === 'POST') { sessions.delete(session.id); res.setHeader('Set-Cookie', cookie('', 0)); return json(res, 200, { ok: true }); }
         if (method === 'POST' && ['/api/admin/save', '/api/admin/publish'].includes(pathname)) {
           const publish = pathname.endsWith('/publish');
@@ -114,7 +147,7 @@ function createApp({ users, stateFile, origin, secureCookies = true }) {
       if (pathname === '/admin/admin.js' || pathname === '/admin/admin.css') return sendFile(req, res, path.join(__dirname, pathname.split('/').pop()), 'no-store');
       const name = pathname === '/' ? 'index.html' : pathname.slice(1);
       if (name === 'documents/ziok-constitution-september-2024.pdf' || name === 'documents/ziok-bylaws-september-2024.pdf' || /^documents\/(constitution\/page-[1-9]|bylaws\/page-(0[1-9]|1[0-2]))\.png$/.test(name) || publicFiles.has(name)) return sendFile(req, res, path.join(root, name));
-      return json(res, 404, { error: 'Not found' });
+      return notFound(req, res, pathname);
     } catch (error) { console.error('Request failed:', error.code || error.name); if (!res.headersSent) json(res, 500, { error: 'Server error' }); else res.end(); }
   });
 }
@@ -125,6 +158,14 @@ function resolveBindHost(value, insecure) {
   }
   return host;
 }
+// One week by default so a mistake is recoverable; raise ZIOK_HSTS_MAX_AGE to
+// 31536000 once HTTPS is confirmed everywhere. 0 disables the header.
+function hstsValue(env) {
+  const raw = env.ZIOK_HSTS_MAX_AGE === undefined || env.ZIOK_HSTS_MAX_AGE === '' ? '604800' : env.ZIOK_HSTS_MAX_AGE;
+  if (!/^\d{1,9}$/.test(raw)) throw new Error('Invalid ZIOK_HSTS_MAX_AGE');
+  if (Number(raw) === 0) return '';
+  return `max-age=${raw}${env.ZIOK_HSTS_INCLUDE_SUBDOMAINS === 'true' ? '; includeSubDomains' : ''}`;
+}
 if (require.main === module) {
   const insecure = process.env.ZIOK_INSECURE_LOCAL === 'true';
   const origin = process.env.ZIOK_PUBLIC_ORIGIN || (insecure ? 'http://127.0.0.1:8080' : '');
@@ -134,8 +175,10 @@ if (require.main === module) {
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Invalid PORT');
   const users = parseUsers(process.env.ZIOK_USERS_JSON);
   const stateFile = path.resolve(process.env.ZIOK_STATE_FILE || path.join(root, 'var', 'content.json'));
-  const server = createApp({ users, stateFile, origin, secureCookies: !insecure });
+  const trustedProxies = parseTrustedProxies(process.env.ZIOK_TRUSTED_PROXIES);
+  if (!insecure && !trustedProxies.configured) console.warn('ZIOK_TRUSTED_PROXIES is not set: login limits use the connecting address, which is the proxy itself when deployed behind one.');
+  const server = createApp({ users, stateFile, origin, secureCookies: !insecure, trustedProxies, hsts: insecure ? '' : hstsValue(process.env) });
   const host = resolveBindHost(process.env.ZIOK_BIND_HOST, insecure);
   server.listen(port, host, () => console.log(host === '127.0.0.1' ? `ZIOK server listening on loopback port ${port}` : `ZIOK server listening on ${host}:${port}`));
 }
-module.exports = { createApp, resolveBindHost };
+module.exports = { createApp, resolveBindHost, hstsValue, securityHeaders: headers };
