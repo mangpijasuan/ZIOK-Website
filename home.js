@@ -70,6 +70,7 @@ function addMediaLink(container, url, label) {
   link.target = '_blank'; link.rel = 'noopener noreferrer';
   container.append(document.createElement('br'), link);
 }
+
 const media = ZIOK_CONTENT?.media || ZIOK_MEDIA;
 const channel = approvedUrl(media.youtubeChannel, ['youtube.com', 'www.youtube.com', 'm.youtube.com']);
 const facebook = approvedUrl(media.facebookPage, ['facebook.com', 'www.facebook.com', 'm.facebook.com']);
@@ -84,8 +85,23 @@ if (/^[\w-]{11}$/.test(media.youtubeVideoId)) {
 if (channel) {
   addMediaLink($('videos'), channel, 'Visit YouTube channel');
   $('ytstatus').textContent = 'YouTube · Community videos';
+  const footerLinks = $('footer-social-links');
+  if (footerLinks) {
+    const link = document.createElement('a');
+    link.href = channel; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = 'YouTube';
+    footerLinks.append(link);
+  }
 }
 if (facebook) {
   addMediaLink($('photos'), facebook, 'Visit Facebook Page');
-  $('fbstatus').textContent = 'Facebook · Community updates';
+  const newsLink = document.createElement('a');
+  newsLink.href = facebook; newsLink.target = '_blank'; newsLink.rel = 'noopener noreferrer';
+  newsLink.textContent = 'Visit Facebook Page ↗';
+  $('fbstatus').replaceChildren(newsLink);
+  const footerLink = $('footer-social-links');
+  if (footerLink) {
+    const link = document.createElement('a');
+    link.href = facebook; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = 'Facebook';
+    footerLink.append(link);
+  }
 }
