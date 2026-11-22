@@ -1,0 +1,29 @@
+/* Print layout for the directories, leadership and documents pages: no navigation, search or buttons,
+   plain text on white, entries kept whole and set in two columns. Loaded with media="print" only. */
+@page { margin: 14mm 12mm; }
+@media print {
+  *, *::before, *::after { box-shadow: none !important; text-shadow: none !important; }
+  html, body { background: #fff !important; color: #000 !important; font-size: 10.5pt; }
+  .skip-link, .menu-toggle, .side-panel, #nav-panel, .language-select, .nav-cta, .filters, .tabs, .actions, .btn, #reset, button, .symbol, .avatar, .document-icon, .credit, footer a { display: none !important; }
+  header { border: 0; padding: 0; background: #fff !important; }
+  .nav { padding: 0 0 4pt; }
+  .brand { gap: 8pt; font-size: 13pt; color: #000; }
+  .brand img { width: 30pt; height: 30pt; }
+  .hero { background: none !important; color: #000 !important; padding: 6pt 0 8pt; min-height: 0; border-bottom: 1.5pt solid #000; }
+  .hero::after { display: none; }
+  .hero h1 { color: #000 !important; font-size: 20pt; margin: 4pt 0 2pt; }
+  .hero p, .hero .kicker { color: #333 !important; font-size: 10pt; margin: 0; }
+  .wrap, .nav, main { max-width: none; padding-inline: 0; }
+  main { padding-block: 8pt 0 !important; }
+  .summary, .muted, .note, .sub { color: #333 !important; font-size: 9.5pt; }
+  .grid, #business-grid, #church-grid, #village-grid { display: block !important; columns: 2; column-gap: 12mm; }
+  .business, .church, .village, .member, .card { display: block; min-height: 0 !important; height: auto !important; break-inside: avoid; page-break-inside: avoid; border: 0 !important; border-bottom: .5pt solid #999 !important; border-radius: 0 !important; background: none !important; margin: 0 0 5pt; padding: 3pt 0 5pt; }
+  .business h2, .church h2, .village h2, .member h3, .card h2 { font-size: 11pt; margin: 1pt 0; color: #000; }
+  .business p, .church p, .village p, .member p { margin: 1pt 0; color: #000; }
+  .category, .pastor-label { color: #444 !important; background: none !important; border: 0 !important; padding: 0; font-size: 8.5pt; letter-spacing: .06em; text-transform: uppercase; }
+  .title { font-size: 14pt; margin: 6pt 0 2pt; }
+  section[role="tabpanel"][hidden] { display: none !important; }
+  h1, h2, h3 { break-after: avoid; }
+  footer { background: none !important; color: #333 !important; border-top: .5pt solid #999; padding: 6pt 0 0; margin-top: 10pt; font-size: 9pt; text-align: left; }
+  main a[href^="mailto:"] { text-decoration: none; }
+}

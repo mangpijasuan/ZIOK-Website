@@ -1,0 +1,17 @@
+/* Rules shared by: businesses, churches, villages. Loaded before each page stylesheet and shared.css. */
+body{margin:0;background:#f8f9fb;color:#16243b;font:16px/1.6 Arial,sans-serif}
+.nav,.wrap{max-width:1230px;margin:auto;padding:20px 25px}
+.nav{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.brand{display:flex;align-items:center;gap:12px;font-weight:800;font-size:20px;line-height:1.25;letter-spacing:-.025em}
+.brand img{width:58px;height:58px;border-radius:50%}
+.brand small{display:block;color:#61728a;font-size:13px;font-weight:600;letter-spacing:0}
+.nav-actions{display:flex;align-items:center;gap:14px;font-size:14px;font-weight:bold}
+.lang{font:inherit;border:1px solid #cbd7e3;border-radius:5px;background:white;padding:8px 12px;color:#153657;cursor:pointer;white-space:nowrap}
+.hero{background:linear-gradient(115deg,#0a1931,#21486f);color:white;padding:48px 0}
+.hero h1{font:700 clamp(34px,5vw,58px)/1.1 Georgia,serif;margin:10px 0}
+.main{padding-top:34px;padding-bottom:60px}
+.note{margin-top:25px;color:#4e6076}
+.note a{color:#173958;text-decoration:underline}
+footer{background:#0b1c33;color:#cdd9e8;padding:25px;text-align:center;font-size:14px}
+.credit{display:block;margin-top:8px;font-size:13px}
+.credit a{color:white;text-decoration:underline;font-weight:bold}

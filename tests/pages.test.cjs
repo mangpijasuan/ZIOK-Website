@@ -124,6 +124,14 @@ test('index pages list items, link to them, and hide items without Zomi text in 
   assert.match(page('/events', content).html, /rel="canonical" href="https:\/\/ziok\.test\/events\/"/, 'both spellings serve the canonical page');
 });
 
+test('generated pages carry no inline styles or scripts, so the strict policy holds', () => {
+  const content = sample();
+  for (const route of ['/news/', '/events/', '/zo/news/', `/news/${content.news[0].slug}`, `/zo/events/${content.events[0].slug}`]) {
+    const html = page(route, content).html.replace(/<script type="application\/ld\+json">.*?<\/script>/s, '');
+    assert.doesNotMatch(html, /<style|\sstyle=|<script(?![^>]*\bsrc=)|\son[a-z]+=/i, route);
+  }
+});
+
 test('titles fit search results and descriptions are trimmed at a word', () => {
   const content = sample();
   content.news[0].title = 'A very long announcement title that goes on well past what a search result can display';
