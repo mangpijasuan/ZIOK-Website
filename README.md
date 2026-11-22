@@ -57,6 +57,8 @@ Use a unique local test password of 14–256 characters. Do not reuse production
 - Username: `admin`
 - Password: the local password you chose above.
 
+To update social links, sign in to the portal, select **Website Settings**, enter the official Facebook and YouTube URLs, select **Save draft**, then **Publish saved draft**. Published Facebook links appear in the News section, Photo gallery and homepage footer. Published YouTube links appear in Videos and the homepage footer.
+
 Keep the terminal open while testing. The expected startup message is `ZIOK server listening on loopback port 3000`. Save and publish content through the administrator portal; test changes persist in `var/test-content.json`.
 
 If port 3000 is occupied, change both `PORT` and `ZIOK_PUBLIC_ORIGIN` to another unused port and open the matching URL. If the browser refuses the connection, check that `npm start` is still running. Always use the exact configured origin for administrator sign-in.
@@ -101,7 +103,7 @@ For static hosting, publish the public HTML, JavaScript, CSS, logo, `robots.txt`
 
 ## Current limitations
 
-This is a static application. Official public media links are configured centrally in `media-config.js`, committed through GitHub, and published on deployment. Leave unconfirmed values empty. Never include private credentials in this file. Automatic Facebook and YouTube synchronization requires a backend and authorized API access. Online membership, donations, and account management are not enabled. No hosting credentials, tokens or API keys are included.
+For static-only hosting, official public media links are configured centrally in `media-config.js`, committed through GitHub, and published on deployment. On the Node server, use the administrator portal’s Website Settings to save and publish links. Leave unconfirmed values empty. Never include private credentials in this file. Automatic Facebook and YouTube synchronization requires a backend and authorized API access. Online membership, donations, and account management are not enabled. No hosting credentials, tokens or API keys are included.
 
 ## Validation and deployment checklist
 
