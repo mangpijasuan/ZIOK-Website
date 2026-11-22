@@ -163,7 +163,7 @@ for (const [name, viewport] of [['desktop', desktop], ['mobile', mobile]]) {
         assert.equal(await page.locator('#menu').isVisible(), true, file);
         assert.equal(await page.locator('#nav-panel').isVisible(), false, file);
         assert.equal(await page.locator('header .brand small').count(), 0, file);
-        assert.match(await page.locator('footer').innerText(), /© Zomi Innkuan Oklahoma, Inc\./, file);
+        assert.match(await page.locator('footer').innerText(), new RegExp(`© ${new Date().getFullYear()} Zomi Innkuan Oklahoma, Inc\\.`), file);
         const alignment = await page.evaluate(() => {
           const edge = element => {
             const rect = element.getBoundingClientRect();

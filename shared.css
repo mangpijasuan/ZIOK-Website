@@ -40,3 +40,16 @@ html:has(.side-panel[open]) { overflow: hidden; }
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
+
+/* The organization name uses a classic, prominent serif on every public page. */
+.nav .brand > :is(span, div) {
+  font-family: "Times New Roman", Times, Georgia, serif;
+  font-size: clamp(24px, 2.5vw, 34px);
+  font-weight: 700;
+  line-height: 1.12;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 700px) {
+  .nav .brand > :is(span, div) { font-size: clamp(16px, 3.8vw, 22px); }
+}
