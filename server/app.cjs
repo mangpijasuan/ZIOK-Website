@@ -165,8 +165,9 @@ function createApp({ users, stateFile, origin, secureCookies = true, trustedProx
       }
       if (method !== 'GET' && method !== 'HEAD') return json(res, 405, { error: 'Method not allowed' });
       if (pathname === '/public-content.js') {
-        const script = `const ZIOK_CONTENT = ${JSON.stringify(state.published).replace(/</g, '\\u003c')};\n`;
-        res.writeHead(200, { 'Content-Type': mime['.js'], 'Cache-Control': 'no-store' }); return res.end(method === 'HEAD' ? undefined : script);
+        const script = `const ZIOK_CONTENT = ${JSON.stringify(state.published).replace(/</g, '\\u003c')};\n`
+        const updated = `const ZIOK_UPDATED = ${JSON.stringify(latestPublishDate(state))};\n`;
+        res.writeHead(200, { 'Content-Type': mime['.js'], 'Cache-Control': 'no-store' }); return res.end(method === 'HEAD' ? undefined : script + updated);
       }
       if (pathname === '/sitemap.xml') {
         // Published content is editable in the portal, so a publish counts as a real change to every page.

@@ -29,3 +29,6 @@ document.querySelectorAll('[data-copyright-year]').forEach(element => {
 });
 // The contact address is editable in the administrator portal; static hosts keep the address written in the page.
 (function(){var email=typeof ZIOK_CONTENT!=='undefined'&&ZIOK_CONTENT&&ZIOK_CONTENT.contact&&ZIOK_CONTENT.contact.email;if(!/^[^\s@<>"]+@[^\s@<>"]+$/.test(email||''))return;document.querySelectorAll('a[data-contact-email]').forEach(function(a){a.href='mailto:'+email;a.textContent=email})})();
+
+// Directory pages show when the published content last changed (set by the server; absent on static hosts).
+(function(){var el=document.querySelector('[data-updated]');if(!el||typeof ZIOK_UPDATED==='undefined'||!ZIOK_UPDATED)return;var d=new Date(ZIOK_UPDATED+'T00:00:00Z');if(isNaN(d))return;el.textContent='Last updated '+d.toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric',timeZone:'UTC'});el.hidden=false})();
