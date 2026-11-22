@@ -8,7 +8,7 @@ const { parseTrustedProxies, clientAddress } = require('./proxy.cjs');
 const { routeContentPage, contentSitemapEntries } = require('./pages.cjs');
 
 const root = path.resolve(__dirname, '..');
-const publicFiles = new Set(['index.html', 'leadership.html', 'businesses.html', 'churches.html', 'villages.html', 'governance.html', 'reader.html', 'home.js', 'navigation.js', 'locale.js', 'leadership.js', 'businesses.js', 'churches.js', 'villages.js', 'governance.js', 'community-data.js', 'reader.js', 'media-config.js', 'shared.css', 'content-pages.css', 'ziok-logo-160.webp', 'ziok-logo.png', 'ziok-social.jpg', 'favicon.ico', 'favicon-48.png', 'favicon-192.png', 'apple-touch-icon.png', 'robots.txt', 'sitemap.xml']);
+const publicFiles = new Set(['index.html', 'leadership.html', 'businesses.html', 'churches.html', 'villages.html', 'governance.html', 'reader.html', 'home.js', 'navigation.js', 'locale.js', 'leadership.js', 'businesses.js', 'churches.js', 'villages.js', 'governance.js', 'community-data.js', 'reader.js', 'media-config.js', 'shared.css', 'content-pages.css', 'ziok-logo-160.webp', 'ziok-logo.png', 'ziok-logo-512.webp', 'ziok-social.jpg', 'favicon.ico', 'favicon-48.png', 'favicon-192.png', 'apple-touch-icon.png', 'robots.txt', 'sitemap.xml']);
 const mime = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.webp': 'image/webp', '.png': 'image/png', '.jpg': 'image/jpeg', '.ico': 'image/x-icon', '.pdf': 'application/pdf', '.txt': 'text/plain; charset=utf-8', '.xml': 'application/xml; charset=utf-8' };
 const headers = {
   'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'strict-origin-when-cross-origin',
@@ -182,7 +182,7 @@ function createApp({ users, stateFile, origin, secureCookies = true, trustedProx
       if (pathname === '/admin' || pathname === '/admin/') return sendFile(req, res, path.join(__dirname, 'admin.html'), 'no-store');
       if (pathname === '/admin/admin.js' || pathname === '/admin/admin.css') return sendFile(req, res, path.join(__dirname, pathname.split('/').pop()), 'no-store');
       const name = pathname === '/' ? 'index.html' : pathname.slice(1);
-      if (name === 'documents/ziok-constitution-september-2024.pdf' || name === 'documents/ziok-bylaws-september-2024.pdf' || /^documents\/(constitution\/page-[1-9]|bylaws\/page-(0[1-9]|1[0-2]))\.png$/.test(name) || publicFiles.has(name)) return sendFile(req, res, path.join(root, name));
+      if (name === 'documents/ziok-constitution-september-2024.pdf' || name === 'documents/ziok-bylaws-september-2024.pdf' || /^documents\/(constitution\/page-[1-9]|bylaws\/page-(0[1-9]|1[0-2]))\.webp$/.test(name) || publicFiles.has(name)) return sendFile(req, res, path.join(root, name));
       return notFound(req, res, pathname);
     } catch (error) { console.error('Request failed:', error.code || error.name); if (!res.headersSent) json(res, 500, { error: 'Server error' }); else res.end(); }
   });

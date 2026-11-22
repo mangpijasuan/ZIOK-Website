@@ -66,8 +66,10 @@ class SiteTests(unittest.TestCase):
             pdf = ROOT / 'documents' / f'ziok-{section}-september-2024.pdf'
             self.assertTrue(pdf.read_bytes().startswith(b'%PDF'))
             for number in range(1, count + 1):
-                image = ROOT / 'documents' / section / f'page-{number:0{padding}d}.png'
-                self.assertTrue(image.read_bytes().startswith(b'\x89PNG\r\n\x1a\n'), image.name)
+                image = ROOT / 'documents' / section / f'page-{number:0{padding}d}.webp'
+                data = image.read_bytes()
+                self.assertEqual((data[:4], data[8:12]), (b'RIFF', b'WEBP'), image.name)
+                self.assertLess(len(data), 150_000, image.name)
 
     def test_javascript_syntax(self):
         for file in ROOT.glob('*.js'):

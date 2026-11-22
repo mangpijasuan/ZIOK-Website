@@ -15,6 +15,7 @@ SANS_BOLD = '/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf'
 # Favicons. Google asks for a square icon whose side is a multiple of 48px.
 for size, name in ((48, 'favicon-48.png'), (192, 'favicon-192.png'), (180, 'apple-touch-icon.png')):
     logo.resize((size, size), Image.LANCZOS).save(ROOT / name, optimize=True)
+logo.resize((512, 512), Image.LANCZOS).save(ROOT / 'ziok-logo-512.webp', quality=90, method=6)  # logo for structured data
 logo.resize((48, 48), Image.LANCZOS).save(ROOT / 'favicon.ico', sizes=[(16, 16), (32, 32), (48, 48)])
 
 # 1200x630 sharing image (Facebook, messaging apps, search previews).
