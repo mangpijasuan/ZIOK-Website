@@ -115,3 +115,35 @@ test('legacy church seed refresh preserves customized directories', () => {
   const customized = legacy.map((item,index) => index === 0 ? {...item, pastor: 'Custom pastor'} : item);
   assert.deepEqual(migrateContent({ ...defaults, churches: customized }).churches, customized);
 });
+
+test('sitemap dates move only when content is published; admin and API responses are not indexable; assets are served', async () => {
+  const { sitemapWithPublishDate } = require('../server/app.cjs');
+  const xml = '<url><loc>a</loc><lastmod>2026-11-22</lastmod></url><url><loc>b</loc><lastmod>2027-01-05</lastmod></url>';
+  assert.equal(sitemapWithPublishDate(xml, { published: null, audit: [{ action: 'save draft', at: '2027-03-01T10:00:00Z' }] }), xml, 'drafts do not change dates');
+  assert.equal(sitemapWithPublishDate(xml, { published: {}, audit: [{ action: 'save draft', at: '2027-03-01T10:00:00Z' }] }), xml, 'saving is not publishing');
+  const published = sitemapWithPublishDate(xml, { published: {}, audit: [{ action: 'publish', at: '2026-12-01T10:00:00Z' }, { action: 'publish', at: '2026-12-15T09:00:00Z' }] });
+  assert.match(published, /<loc>a<\/loc><lastmod>2026-12-15<\/lastmod>/);
+  assert.match(published, /<loc>b<\/loc><lastmod>2027-01-05<\/lastmod>/, 'later dates are never lowered');
+
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'ziok-seo-'));
+  const passwordHash = await hashPassword('test-only-password-for-ci');
+  const users = parseUsers(JSON.stringify([{ username: 'admin', role: 'admin', passwordHash }]));
+  const server = createApp({ users, stateFile: path.join(directory, 'content.json'), origin: 'https://ziok.test' });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  try {
+    const map = await fetch(`${base}/sitemap.xml`);
+    assert.equal(map.status, 200);
+    assert.match(map.headers.get('content-type'), /application\/xml/);
+    const served = await map.text();
+    const committed = await fs.readFile(path.join(__dirname, '..', 'sitemap.xml'), 'utf8');
+    assert.ok(served.startsWith(committed.slice(0, committed.indexOf('</urlset>')).trimEnd()), 'unpublished state keeps the committed pages and dates');
+    assert.match(served, /<loc>https:\/\/ziok\.test\/news\/a-home-for-the-zomi-community<\/loc>/, 'generated pages are listed');
+    assert.match((await fetch(`${base}/ziok-social.jpg`)).headers.get('content-type'), /image\/jpeg/);
+    assert.match((await fetch(`${base}/favicon.ico`)).headers.get('content-type'), /image\/x-icon/);
+    for (const name of ['favicon-48.png', 'favicon-192.png', 'apple-touch-icon.png']) assert.equal((await fetch(`${base}/${name}`)).status, 200, name);
+    assert.match((await fetch(`${base}/admin`)).headers.get('x-robots-tag'), /noindex/);
+    assert.match((await fetch(`${base}/api/admin/state`)).headers.get('x-robots-tag'), /noindex/);
+    assert.equal((await fetch(`${base}/`)).headers.get('x-robots-tag'), null, 'public pages stay indexable');
+  } finally { await new Promise(resolve => server.close(resolve)); await fs.rm(directory, { recursive: true, force: true }); }
+});

@@ -89,6 +89,8 @@ For static hosting, publish the public HTML, JavaScript, CSS, logo, `robots.txt`
 
 Production settings (trusted proxy for login limits, HSTS, backups and restore, directory listing requests) are documented in [docs/OPERATIONS.md](docs/OPERATIONS.md).
 
+Search, sharing and sitemap maintenance are described in [docs/SEO.md](docs/SEO.md).
+
 ## Contents
 
 - `index.html`: community homepage, events, contact information and media setup

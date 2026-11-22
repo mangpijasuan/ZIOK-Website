@@ -11,7 +11,7 @@ const { hashPassword, parseUsers } = require('../server/auth.cjs');
 
 const root = path.resolve(__dirname, '..');
 const prefix = '/ZIOK-Website/';
-const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.webp': 'image/webp', '.png': 'image/png', '.pdf': 'application/pdf' };
+const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.webp': 'image/webp', '.png': 'image/png', '.jpg': 'image/jpeg', '.ico': 'image/x-icon', '.pdf': 'application/pdf' };
 let server, browser, base;
 
 before(async () => {

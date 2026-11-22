@@ -5,10 +5,11 @@ const { randomBytes, timingSafeEqual } = require('node:crypto');
 const { defaults, validateContent, migrateContent } = require('./content.cjs');
 const { verifyPassword, parseUsers } = require('./auth.cjs');
 const { parseTrustedProxies, clientAddress } = require('./proxy.cjs');
+const { routeContentPage, contentSitemapEntries } = require('./pages.cjs');
 
 const root = path.resolve(__dirname, '..');
-const publicFiles = new Set(['index.html', 'leadership.html', 'businesses.html', 'churches.html', 'villages.html', 'governance.html', 'reader.html', 'home.js', 'navigation.js', 'locale.js', 'leadership.js', 'businesses.js', 'churches.js', 'villages.js', 'governance.js', 'community-data.js', 'reader.js', 'media-config.js', 'shared.css', 'ziok-logo-160.webp', 'ziok-logo.png', 'robots.txt', 'sitemap.xml']);
-const mime = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.webp': 'image/webp', '.png': 'image/png', '.pdf': 'application/pdf', '.txt': 'text/plain; charset=utf-8', '.xml': 'application/xml; charset=utf-8' };
+const publicFiles = new Set(['index.html', 'leadership.html', 'businesses.html', 'churches.html', 'villages.html', 'governance.html', 'reader.html', 'home.js', 'navigation.js', 'locale.js', 'leadership.js', 'businesses.js', 'churches.js', 'villages.js', 'governance.js', 'community-data.js', 'reader.js', 'media-config.js', 'shared.css', 'content-pages.css', 'ziok-logo-160.webp', 'ziok-logo.png', 'ziok-logo-512.webp', 'ziok-social.jpg', 'favicon.ico', 'favicon-48.png', 'favicon-192.png', 'apple-touch-icon.png', 'robots.txt', 'sitemap.xml']);
+const mime = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.webp': 'image/webp', '.png': 'image/png', '.jpg': 'image/jpeg', '.ico': 'image/x-icon', '.pdf': 'application/pdf', '.txt': 'text/plain; charset=utf-8', '.xml': 'application/xml; charset=utf-8' };
 const headers = {
   'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'strict-origin-when-cross-origin',
   'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
@@ -28,6 +29,7 @@ async function body(req) {
   for await (const chunk of req) { size += chunk.length; if (size > 1048576) throw new Error('Request too large'); chunks.push(chunk); }
   return JSON.parse(Buffer.concat(chunks).toString('utf8'));
 }
+const fallbackContent = migrateContent(defaults);
 function initialState(file) {
   if (fs.existsSync(file)) {
     const saved = JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -48,6 +50,27 @@ function sendFile(req, res, file, cache = 'no-cache', status = 200) {
   if (req.method === 'HEAD') res.end(); else fs.createReadStream(file).pipe(res);
 }
 
+// The date of the latest publish. Edits and drafts never count, and neither does the passage of time,
+// so dates move only when content actually goes live.
+function latestPublishDate(state) {
+  if (state.published === null) return null;
+  return state.audit.filter(entry => entry.action === 'publish').map(entry => String(entry.at).slice(0, 10)).sort().at(-1) || null;
+}
+
+// Raises each <lastmod> to the latest publish date; later dates are never lowered.
+function sitemapWithPublishDate(xml, state) {
+  const latest = latestPublishDate(state);
+  if (!latest) return xml;
+  return xml.replace(/<lastmod>(\d{4}-\d{2}-\d{2})<\/lastmod>/g, (match, date) => `<lastmod>${date > latest ? date : latest}</lastmod>`);
+}
+
+// The static page list plus an entry for each generated news and event page.
+function fullSitemap(xml, state, content, origin) {
+  const dated = sitemapWithPublishDate(xml, state);
+  const fallback = latestPublishDate(state) || /<lastmod>([^<]*)<\/lastmod>/.exec(dated)?.[1];
+  return dated.replace('</urlset>', `  ${contentSitemapEntries(content, origin, fallback)}\n</urlset>`);
+}
+
 // Browsers navigating to an unknown page get the branded 404 page; API and
 // non-HTML requests keep the JSON response.
 function notFound(req, res, pathname) {
@@ -58,6 +81,8 @@ function notFound(req, res, pathname) {
 
 function createApp({ users, stateFile, origin, secureCookies = true, trustedProxies = parseTrustedProxies(''), hsts = '' }) {
   let state = initialState(stateFile);
+  // What visitors see: published content, or the original content until something is published.
+  const publicContent = () => state.published ?? fallbackContent;
   const sessions = new Map(), attempts = new Map(), accountFailures = new Map();
   let pendingLogins = 0;
   const cookieName = secureCookies ? '__Host-ziok-session' : 'ziok-local-session';
@@ -78,7 +103,7 @@ function createApp({ users, stateFile, origin, secureCookies = true, trustedProx
     try {
       const pathname = new URL(req.url, origin).pathname;
       const method = req.method;
-      if (pathname.startsWith('/api/') || pathname === '/admin' || pathname.startsWith('/admin/')) res.setHeader('Cache-Control', 'no-store');
+      if (pathname.startsWith('/api/') || pathname === '/admin' || pathname.startsWith('/admin/')) { res.setHeader('Cache-Control', 'no-store'); res.setHeader('X-Robots-Tag', 'noindex, nofollow'); }
       if (method === 'POST' && req.headers.origin !== origin) return json(res, 403, { error: 'Origin not allowed' });
       if (pathname === '/api/admin/login' && method === 'POST') {
         let input; try { input = await body(req); } catch { return json(res, 400, { error: 'Invalid request' }); }
@@ -143,10 +168,21 @@ function createApp({ users, stateFile, origin, secureCookies = true, trustedProx
         const script = `const ZIOK_CONTENT = ${JSON.stringify(state.published).replace(/</g, '\\u003c')};\n`;
         res.writeHead(200, { 'Content-Type': mime['.js'], 'Cache-Control': 'no-store' }); return res.end(method === 'HEAD' ? undefined : script);
       }
+      if (pathname === '/sitemap.xml') {
+        // Published content is editable in the portal, so a publish counts as a real change to every page.
+        const body = fullSitemap(fs.readFileSync(path.join(root, 'sitemap.xml'), 'utf8'), state, publicContent(), origin);
+        res.writeHead(200, { 'Content-Type': mime['.xml'], 'Cache-Control': 'no-cache', 'Content-Length': Buffer.byteLength(body) });
+        return res.end(method === 'HEAD' ? undefined : body);
+      }
+      const generated = routeContentPage(pathname, publicContent(), { origin });
+      if (generated) {
+        res.writeHead(generated.status, { 'Content-Type': mime['.html'], 'Cache-Control': 'no-cache', 'Content-Length': Buffer.byteLength(generated.html) });
+        return res.end(method === 'HEAD' ? undefined : generated.html);
+      }
       if (pathname === '/admin' || pathname === '/admin/') return sendFile(req, res, path.join(__dirname, 'admin.html'), 'no-store');
       if (pathname === '/admin/admin.js' || pathname === '/admin/admin.css') return sendFile(req, res, path.join(__dirname, pathname.split('/').pop()), 'no-store');
       const name = pathname === '/' ? 'index.html' : pathname.slice(1);
-      if (name === 'documents/ziok-constitution-september-2024.pdf' || name === 'documents/ziok-bylaws-september-2024.pdf' || /^documents\/(constitution\/page-[1-9]|bylaws\/page-(0[1-9]|1[0-2]))\.png$/.test(name) || publicFiles.has(name)) return sendFile(req, res, path.join(root, name));
+      if (name === 'documents/ziok-constitution-september-2024.pdf' || name === 'documents/ziok-bylaws-september-2024.pdf' || /^documents\/(constitution\/page-[1-9]|bylaws\/page-(0[1-9]|1[0-2]))\.webp$/.test(name) || publicFiles.has(name)) return sendFile(req, res, path.join(root, name));
       return notFound(req, res, pathname);
     } catch (error) { console.error('Request failed:', error.code || error.name); if (!res.headersSent) json(res, 500, { error: 'Server error' }); else res.end(); }
   });
@@ -182,3 +218,4 @@ if (require.main === module) {
   server.listen(port, host, () => console.log(host === '127.0.0.1' ? `ZIOK server listening on loopback port ${port}` : `ZIOK server listening on ${host}:${port}`));
 }
 module.exports = { createApp, resolveBindHost, hstsValue, securityHeaders: headers };
+module.exports.sitemapWithPublishDate = sitemapWithPublishDate;

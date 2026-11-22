@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://ziok.org/</loc></url>
-  <url><loc>https://ziok.org/leadership.html</loc></url>
-  <url><loc>https://ziok.org/governance.html</loc></url>
-  <url><loc>https://ziok.org/businesses.html</loc></url>
-  <url><loc>https://ziok.org/churches.html</loc></url>
-  <url><loc>https://ziok.org/villages.html</loc></url>
+  <url><loc>https://ziok.org/</loc><lastmod>2026-11-22</lastmod></url>
+  <url><loc>https://ziok.org/leadership.html</loc><lastmod>2026-11-22</lastmod></url>
+  <url><loc>https://ziok.org/governance.html</loc><lastmod>2026-11-22</lastmod></url>
+  <url><loc>https://ziok.org/businesses.html</loc><lastmod>2026-11-22</lastmod></url>
+  <url><loc>https://ziok.org/churches.html</loc><lastmod>2026-11-22</lastmod></url>
+  <url><loc>https://ziok.org/villages.html</loc><lastmod>2026-11-22</lastmod></url>
 </urlset>

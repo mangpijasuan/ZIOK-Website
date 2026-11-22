@@ -50,19 +50,34 @@ function contentText(tag, english, zomi = '', className = '') {
   element.dataset.contentZo = zomi || english;
   return element;
 }
+// Titles link to their own page when the server provides one (/news/<slug>, /events/<slug>).
+function contentLink(tag, href, english, zomi, className = '') {
+  const element = document.createElement(tag);
+  const link = contentText('a', english, zomi, 'content-link');
+  link.href = href; element.className = className; element.append(link);
+  return element;
+}
+function viewAll(grid, href, english, zomi) {
+  const paragraph = document.createElement('p'); paragraph.className = 'view-all';
+  const link = contentText('a', english, zomi, 'content-link'); link.href = href;
+  paragraph.append(link); grid.after(paragraph);
+}
 if (ZIOK_CONTENT) {
   $('newsgrid').replaceChildren(...ZIOK_CONTENT.news.map(item => {
     const card = document.createElement('article'); card.className = 'card';
     const inner = document.createElement('div'); inner.className = 'inner';
-    inner.append(contentText('div', item.tag, '', 'tag'), contentText('h3', item.title, item.titleZo), contentText('p', item.body, item.bodyZo));
+    inner.append(contentText('div', item.tag, '', 'tag'), contentLink('h3', '/news/' + item.slug, item.title, item.titleZo), contentText('p', item.body, item.bodyZo));
     card.append(inner); return card;
   }));
   $('eventgrid').replaceChildren(...ZIOK_CONTENT.events.map(item => {
     const card = document.createElement('article'); card.className = 'event';
     const inner = document.createElement('div');
-    inner.append(contentText('h3', item.title, item.titleZo), contentText('p', item.body, item.bodyZo));
+    inner.append(contentLink('h3', '/events/' + item.slug, item.title, item.titleZo), contentText('p', item.body, item.bodyZo));
     card.append(contentText('div', item.date, '', 'date'), inner); return card;
   }));
+  // Zomi wording below is a draft built from glossary terms; have a Zomi reader confirm it.
+  viewAll($('newsgrid'), '/news/', 'View all news', 'Thuthak khempeuh en in');
+  viewAll($('eventgrid'), '/events/', 'View all events', 'Pawite khempeuh en in');
 }
 function addMediaLink(container, url, label) {
   const link = document.createElement('a');
