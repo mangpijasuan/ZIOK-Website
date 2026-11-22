@@ -1,0 +1,3 @@
+/* Rules shared by: leadership, governance, businesses, churches, villages, reader. Loaded before each page stylesheet and shared.css. */
+*{box-sizing:border-box}
+a{color:inherit;text-decoration:none}

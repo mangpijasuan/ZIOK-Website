@@ -6,14 +6,15 @@ const { defaults, validateContent, migrateContent } = require('./content.cjs');
 const { verifyPassword, parseUsers } = require('./auth.cjs');
 const { parseTrustedProxies, clientAddress } = require('./proxy.cjs');
 const { routeContentPage, contentSitemapEntries } = require('./pages.cjs');
+const { sendBody, bodyTag, sendFileWithCaching } = require('./delivery.cjs');
 
 const root = path.resolve(__dirname, '..');
-const publicFiles = new Set(['index.html', 'leadership.html', 'businesses.html', 'churches.html', 'villages.html', 'governance.html', 'reader.html', 'home.js', 'navigation.js', 'locale.js', 'leadership.js', 'businesses.js', 'churches.js', 'villages.js', 'governance.js', 'community-data.js', 'reader.js', 'media-config.js', 'shared.css', 'content-pages.css', 'ziok-logo-160.webp', 'ziok-logo.png', 'ziok-logo-512.webp', 'ziok-social.jpg', 'favicon.ico', 'favicon-48.png', 'favicon-192.png', 'apple-touch-icon.png', 'robots.txt', 'sitemap.xml']);
+const publicFiles = new Set(['index.html', 'leadership.html', 'businesses.html', 'churches.html', 'villages.html', 'governance.html', 'reader.html', 'home.js', 'navigation.js', 'locale.js', 'leadership.js', 'businesses.js', 'churches.js', 'villages.js', 'governance.js', 'community-data.js', 'reader.js', 'media-config.js', 'shared.css', 'print.css', 'content-pages.css', 'base.css', 'directory.css', 'index.css', 'leadership.css', 'governance.css', 'businesses.css', 'churches.css', 'villages.css', 'reader.css', 'error.css', 'ziok-logo-160.webp', 'ziok-logo.png', 'ziok-logo-512.webp', 'ziok-social.jpg', 'favicon.ico', 'favicon-48.png', 'favicon-192.png', 'apple-touch-icon.png', 'robots.txt', 'sitemap.xml']);
 const mime = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.webp': 'image/webp', '.png': 'image/png', '.jpg': 'image/jpeg', '.ico': 'image/x-icon', '.pdf': 'application/pdf', '.txt': 'text/plain; charset=utf-8', '.xml': 'application/xml; charset=utf-8' };
 const headers = {
   'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'strict-origin-when-cross-origin',
   'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
-  'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-src https://www.youtube-nocookie.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"
+  'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; frame-src https://www.youtube-nocookie.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'"
 };
 const token = () => randomBytes(32).toString('hex');
 const ttl = 8 * 60 * 60 * 1000;
@@ -44,10 +45,9 @@ function persist(file, state) {
   try { fs.writeFileSync(temp, JSON.stringify(state, null, 2), { mode: 0o600, flag: 'wx' }); fs.renameSync(temp, file); }
   finally { if (fs.existsSync(temp)) fs.unlinkSync(temp); }
 }
-function sendFile(req, res, file, cache = 'no-cache', status = 200) {
+function sendFile(req, res, file, cache, status = 200) {
   if (!fs.existsSync(file) || !fs.statSync(file).isFile()) { json(res, 404, { error: 'Not found' }); return; }
-  res.writeHead(status, { 'Content-Type': mime[path.extname(file)], 'Cache-Control': cache, 'Content-Length': fs.statSync(file).size });
-  if (req.method === 'HEAD') res.end(); else fs.createReadStream(file).pipe(res);
+  sendFileWithCaching(req, res, file, { relative: path.relative(root, file), cacheControl: cache, status, type: mime[path.extname(file)] });
 }
 
 // The date of the latest publish. Edits and drafts never count, and neither does the passage of time,
@@ -171,13 +171,11 @@ function createApp({ users, stateFile, origin, secureCookies = true, trustedProx
       if (pathname === '/sitemap.xml') {
         // Published content is editable in the portal, so a publish counts as a real change to every page.
         const body = fullSitemap(fs.readFileSync(path.join(root, 'sitemap.xml'), 'utf8'), state, publicContent(), origin);
-        res.writeHead(200, { 'Content-Type': mime['.xml'], 'Cache-Control': 'no-cache', 'Content-Length': Buffer.byteLength(body) });
-        return res.end(method === 'HEAD' ? undefined : body);
+        return sendBody(req, res, { type: mime['.xml'], body, cacheControl: 'no-cache', etag: bodyTag(body), extension: '.xml' });
       }
       const generated = routeContentPage(pathname, publicContent(), { origin });
       if (generated) {
-        res.writeHead(generated.status, { 'Content-Type': mime['.html'], 'Cache-Control': 'no-cache', 'Content-Length': Buffer.byteLength(generated.html) });
-        return res.end(method === 'HEAD' ? undefined : generated.html);
+        return sendBody(req, res, { status: generated.status, type: mime['.html'], body: generated.html, cacheControl: 'no-cache', etag: bodyTag(generated.html), extension: '.html' });
       }
       if (pathname === '/admin' || pathname === '/admin/') return sendFile(req, res, path.join(__dirname, 'admin.html'), 'no-store');
       if (pathname === '/admin/admin.js' || pathname === '/admin/admin.css') return sendFile(req, res, path.join(__dirname, pathname.split('/').pop()), 'no-store');

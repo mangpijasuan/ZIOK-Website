@@ -1,0 +1,27 @@
+body{margin:0;background:#edf1f6;color:#16243b;font:16px/1.6 Arial,sans-serif}
+header{background:#fff;border-bottom:1px solid #dfe5ec}
+.wrap,.nav{max-width:1230px;margin:auto;padding:18px 24px}
+.nav{display:flex;justify-content:space-between;align-items:center;gap:15px}
+.brand{display:flex;gap:12px;align-items:center;font-weight:800;font-size:19px;line-height:1.25}
+.brand img{width:52px;height:52px;border-radius:50%}
+.brand small{display:block;font-size:12px;color:#61728a}
+.back{font-weight:700;font-size:14px}
+.hero{background:linear-gradient(115deg,#0a1931,#21486f);color:white;padding:18px 0}
+.hero h1{font:700 clamp(28px,4vw,44px)/1.15 Georgia;margin:5px 0}
+.hero p{margin:6px 0;color:#dbe5f1}
+.toolbar{position:sticky;top:0;z-index:2;background:#fff;border:1px solid #dce3ec;border-radius:8px;padding:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;box-shadow:0 2px 10px #1739580b;margin-bottom:20px}
+button,.btn,select{font:700 14px Arial;padding:10px 13px;border-radius:5px;border:1px solid #c7d3e0;color:#173958;background:white;cursor:pointer}
+.btn{background:#153657;color:white;border-color:#153657}
+.toolbar button:disabled{opacity:.45;cursor:default}
+.zoom{display:flex;gap:8px;align-items:center;margin-left:auto}
+.stage{overflow:auto;background:#dce3eb;border-radius:8px;padding:24px;text-align:left;min-height:350px}
+.page-wrap{margin:auto;text-align:left;max-width:none;width:100%;display:block}
+.page-wrap img{display:block;width:100%;height:auto;background:#fff;box-shadow:0 4px 14px #17395824}
+.page-number{text-align:center;color:#526a83;margin:12px 0}
+.visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+footer{text-align:center;background:#0b1c33;color:#d8e1ed;padding:25px;font-size:14px}
+.credit{display:block;margin-top:8px}
+.credit a{color:white;text-decoration:underline;font-weight:bold}
+@media(max-width:600px){.wrap,.nav{padding:14px}.brand{font-size:14px}.brand img{width:42px;height:42px}.brand small{font-size:11px}.stage{padding:8px}.zoom{margin-left:0}.toolbar{gap:6px}.toolbar button,.btn,select{padding:9px 10px}.hero{padding:14px 0}}
+.nav-actions{display:flex;gap:12px;align-items:center}
+@media(max-width:600px){.nav-actions{flex-direction:column;gap:5px}.nav-actions .back{font-size:12px}}

@@ -193,6 +193,35 @@ class SiteTests(unittest.TestCase):
         self.assertEqual(len(dates), len(locs))
         self.assertEqual(sitemap.count('<lastmod>'), len(locs))
 
+    def test_styles_live_in_stylesheets_so_the_policy_can_forbid_inline_styles(self):
+        for file in ROOT.glob('*.html'):
+            source = file.read_text()
+            self.assertNotIn('<style', source, file.name)
+            self.assertNotRegex(source, r'\sstyle\s*=', file.name)
+        headers = (ROOT / '_headers').read_text()
+        self.assertIn("style-src 'self';", headers)
+        self.assertNotIn("'unsafe-inline'", headers)
+
+    def test_print_stylesheet_is_linked_from_the_printable_pages(self):
+        css = (ROOT / 'print.css').read_text()
+        self.assertIn('@media print', css)
+        for name in ('leadership', 'governance', 'businesses', 'churches', 'villages'):
+            self.assertIn('<link rel="stylesheet" href="print.css" media="print">', (ROOT / f'{name}.html').read_text(), name)
+
+    def test_shared_rules_are_not_repeated_in_page_stylesheets(self):
+        directory = ROOT / 'directory.css'
+        self.assertTrue(directory.is_file())
+        shared = [rule for rule in directory.read_text().splitlines() if rule and not rule.startswith('/*')]
+        self.assertTrue(shared)
+        for name in ('businesses', 'churches', 'villages'):
+            page = (ROOT / f'{name}.html').read_text()
+            self.assertIn('href="directory.css"', page)
+            self.assertLess(page.index('href="directory.css"'), page.index(f'href="{name}.css"'), 'shared rules load first')
+            own = set((ROOT / f'{name}.css').read_text().splitlines())
+            self.assertFalse([rule for rule in shared if rule in own], name)
+        for name in ('index',):
+            self.assertNotIn('directory.css', (ROOT / f'{name}.html').read_text())
+
     def test_optimized_logo(self):
         logo = ROOT / 'ziok-logo-160.webp'
         self.assertEqual(logo.read_bytes()[8:12], b'WEBP')
