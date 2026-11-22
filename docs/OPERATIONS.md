@@ -100,6 +100,9 @@ Suggested handling:
 
 `404.html` (with the automatically updating copyright year) is served with status 404 for unknown pages requested by a browser; API paths and non-browser requests keep the JSON error. It uses root-absolute links because it is shown at any URL depth. On static hosts such as Cloudflare Pages, `404.html` is picked up automatically.
 
+## Contact email setting
+
+Administrators can change the public contact address under **Contact** in the portal. It is used in the footer, the directory notices and the news and event pages, and applies when you publish. Older saved content without the setting falls back to `admin@ziok.org`. The address inside the home page's structured data (for search engines) is static, so update `index.html` too if the address ever changes permanently.
 ## Maintenance
 
 - **Node version**: the Dockerfile and CI both use Node 24 (`.nvmrc`). `engines` keeps 22 as the minimum. To move to a newer Node, change `.nvmrc` and the Dockerfile `FROM` line together, then let CI pass before deploying.

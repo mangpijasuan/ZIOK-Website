@@ -222,6 +222,10 @@ class SiteTests(unittest.TestCase):
         for name in ('index',):
             self.assertNotIn('directory.css', (ROOT / f'{name}.html').read_text())
 
+    def test_contact_email_links_can_be_replaced_from_published_content(self):
+        for name in ('index', 'businesses', 'churches', 'villages'):
+            self.assertIn('href="mailto:admin@ziok.org" data-contact-email', (ROOT / f'{name}.html').read_text(), name)
+        self.assertIn('data-contact-email', (ROOT / 'navigation.js').read_text())
     def test_directories_can_show_the_last_updated_date(self):
         for name in ('businesses', 'churches', 'villages'):
             self.assertIn('data-updated hidden', (ROOT / f'{name}.html').read_text(), name)

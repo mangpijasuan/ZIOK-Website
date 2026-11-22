@@ -12,7 +12,8 @@ const defaults = {
     { title: 'Community gathering', titleZo: 'Kipawlna kikhopna', body: 'Connect with local families', bodyZo: 'Khuasung innkuante tawh kizom in', date: 'TBD' },
     { title: 'Youth & family programs', titleZo: 'Khangno leh innkuan nasep geelna', body: 'Future community activities', bodyZo: 'Mailam kipawlna nasepte', date: 'TBD' }
   ],
-  media: { youtubeChannel: '', facebookPage: '', youtubeVideoId: '' }
+  media: { youtubeChannel: '', facebookPage: '', youtubeVideoId: '' },
+  contact: { email: 'admin@ziok.org' }
 };
 
 function slugify(title) {
@@ -95,7 +96,9 @@ function validateContent(input) {
   if (documents.length !== 2) throw new Error('Keep both governance records');
   const video = text(input?.media?.youtubeVideoId, 11);
   if (video && !/^[A-Za-z0-9_-]{11}$/.test(video)) throw new Error('Invalid YouTube video ID');
-  return { businesses, churches, villages, terms, leadership, documents, news: news(input?.news), events: events(input?.events), media: {
+  const email = text(input?.contact?.email ?? defaults.contact.email, 120, true).toLowerCase();
+  if (!/^[a-z0-9._%+-]+@[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(email)) throw new Error('Invalid contact email');
+  return { contact: { email }, businesses, churches, villages, terms, leadership, documents, news: news(input?.news), events: events(input?.events), media: {
     youtubeChannel: url(input?.media?.youtubeChannel, ['youtube.com', 'www.youtube.com', 'm.youtube.com']),
     facebookPage: url(input?.media?.facebookPage, ['facebook.com', 'www.facebook.com', 'm.facebook.com']), youtubeVideoId: video
   } };
