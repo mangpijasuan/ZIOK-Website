@@ -21,3 +21,8 @@
   panel.addEventListener('click', event => { if (event.target === panel) closeMenu(); });
   panel.querySelectorAll('a[href]').forEach(link => link.addEventListener('click', closeMenu));
 })();
+
+// Keep the public footer copyright year current.
+document.querySelectorAll('[data-copyright-year]').forEach(element => {
+  element.textContent = String(new Date().getFullYear());
+});
