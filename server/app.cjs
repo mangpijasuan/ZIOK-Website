@@ -128,6 +128,8 @@ if (require.main === module) {
   const users = parseUsers(process.env.ZIOK_USERS_JSON);
   const stateFile = path.resolve(process.env.ZIOK_STATE_FILE || path.join(root, 'var', 'content.json'));
   const server = createApp({ users, stateFile, origin, secureCookies: !insecure });
-  server.listen(port, '127.0.0.1', () => console.log(`ZIOK server listening on loopback port ${port}`));
+  const host = process.env.ZIOK_BIND_HOST || '127.0.0.1';
+  if (!['127.0.0.1', '0.0.0.0'].includes(host) || (insecure && host !== '127.0.0.1')) throw new Error('Invalid bind host for this mode');
+  server.listen(port, host, () => console.log(`ZIOK server listening on ${host}:${port}`));
 }
 module.exports = { createApp };

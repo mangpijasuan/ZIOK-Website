@@ -1,0 +1,8 @@
+.git
+node_modules
+var
+.env
+.env.*
+__pycache__
+playwright-report
+test-results
