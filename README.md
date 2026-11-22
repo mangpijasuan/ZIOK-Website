@@ -87,6 +87,8 @@ Open http://127.0.0.1:8000. Use `python3` if needed. This is a local preview onl
 
 For static hosting, publish the public HTML, JavaScript, CSS, logo, `robots.txt`, `sitemap.xml`, `_headers` (for compatible hosts) and `documents/` assets. Set `index.html` as the home page. Do not upload local configuration, `var/`, `.env` files, or administrator server files. Configure your domain DNS and HTTPS through your hosting provider. The optional administrator portal below requires a Node host instead of static-only hosting.
 
+Production settings (trusted proxy for login limits, HSTS, backups and restore, directory listing requests) are documented in [docs/OPERATIONS.md](docs/OPERATIONS.md).
+
 ## Contents
 
 - `index.html`: community homepage, events, contact information and media setup

@@ -4,7 +4,8 @@
   "license": "MIT",
   "scripts": {
     "start": "node server/app.cjs",
-    "test:server": "node --test tests/server.test.cjs",
+    "backup": "node server/backup.cjs",
+    "test:server": "node --test tests/server.test.cjs tests/hardening.test.cjs",
     "test:browser": "node --test tests/browser.test.cjs"
   },
   "devDependencies": {

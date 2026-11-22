@@ -45,8 +45,10 @@ class SiteTests(unittest.TestCase):
                 url = urlsplit(link)
                 if url.scheme or url.netloc:
                     continue
-                self.assertFalse(url.path.startswith('/'), (file.name, link))
-                target = file.parent / unquote(url.path) if url.path else file
+                # 404.html is served at any URL depth, so it must use root-absolute links.
+                if url.path:
+                    self.assertEqual(url.path.startswith('/'), file.name == '404.html', (file.name, link))
+                target = file.parent / unquote(url.path.lstrip('/')) if url.path else file
                 self.assertTrue(target.is_file(), (file.name, link))
                 if url.fragment and target.suffix == '.html':
                     self.assertIn(url.fragment, Page(target).ids, (file.name, link))
@@ -77,7 +79,7 @@ class SiteTests(unittest.TestCase):
             self.assertNotRegex(source, r'(?<!@media)\((?:min|max)-width:')
             self.assertIn('name="description"', source)
             self.assertIn('class="skip-link"', source)
-            self.assertIn('href="shared.css"', source)
+            self.assertIn('href="/shared.css"' if file.name == '404.html' else 'href="shared.css"', source)
             self.assertNotRegex(source, r'\son[a-z]+\s*=')
 
     def test_optimized_logo(self):
