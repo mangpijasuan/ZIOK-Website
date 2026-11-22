@@ -9,27 +9,38 @@ Settings and routines for running the ZIOK server in production (Coolify or any 
 | `ZIOK_PUBLIC_ORIGIN` | Public HTTPS origin, for example `https://ziok.org` | required |
 | `ZIOK_USERS_JSON` | Administrator and editor accounts with password hashes | required |
 | `ZIOK_STATE_FILE` | Content, draft and audit history file | `/app/var/content.json` in Docker |
-| `ZIOK_TRUSTED_PROXIES` | Reverse-proxy addresses or CIDR ranges allowed to supply `X-Forwarded-For` | none |
+| `ZIOK_TRUSTED_PROXIES` | Narrow address or CIDR range of the reverse proxy, measured with `/api/admin/network` (see below) | none |
 | `ZIOK_HSTS_MAX_AGE` | `Strict-Transport-Security` lifetime in seconds; `0` disables | `604800` (one week) |
 | `ZIOK_HSTS_INCLUDE_SUBDOMAINS` | Set `true` to add `includeSubDomains` | off |
 | `ZIOK_BACKUP_KEEP` | Number of backups the backup command keeps | `30` |
 | `ZIOK_BACKUP_DIR` | Backup folder | `backups/` next to the state file |
 
-## Login protection behind a proxy
+## Login protection
 
-Failed sign-ins are limited per client address (20 attempts per 15 minutes). Behind Coolify's proxy the connecting address is the proxy itself, so without configuration every visitor shares one limit and a handful of failed attempts could lock administrators out.
+Two limits apply to failed sign-ins, both for 15 minutes:
 
-Set `ZIOK_TRUSTED_PROXIES` to the address range the proxy connects from, for example the Docker network the app and proxy share:
+- **Per client address:** 20 attempts. A successful sign-in clears the count.
+- **Per account:** 10 failures, counted across all addresses and for any submitted name whether or not it exists, so a lock reveals nothing about which accounts are real. While an account is locked, even the correct password is refused until the window ends, and the server logs a line saying which account locked. Already signed-in sessions are unaffected.
 
-```
-ZIOK_TRUSTED_PROXIES=172.16.0.0/12
-```
+The account lock stops a distributed password-guessing attack, at a cost: someone who knows a username can keep it locked by repeating failures. If you see lock messages you did not cause, sign in again after the window or check the logs; real administrators are never locked out permanently.
 
-- Only connections from these addresses may supply `X-Forwarded-For`. The header is read from the right, skipping other trusted proxies, so a client cannot choose its own address.
-- Keep the range as narrow as you can. Blanket values such as `0.0.0.0/0` are refused at startup.
-- If a CDN such as Cloudflare sits in front of the proxy, also list the CDN's published ranges. Otherwise all visitors appear as the CDN.
-- The server logs a warning at startup in production when the variable is empty.
-- To find the proxy's address, check the app container's network in Coolify or run `docker network inspect` on the host, then use that subnet.
+### Trusted proxy (required behind Coolify)
+
+Behind a reverse proxy the connecting address is the proxy itself, so without configuration every visitor shares one per-address limit. `ZIOK_TRUSTED_PROXIES` tells the server which addresses are the proxy, so it may read the visitor's address from `X-Forwarded-For`. The header is read from the right, skipping other trusted proxies, so a client cannot choose its own address, and blanket values such as `0.0.0.0/0` are refused at startup.
+
+Do not guess the value. Measure it, then trust only that:
+
+1. Deploy with `ZIOK_TRUSTED_PROXIES` **unset**. The server logs a warning at startup; behaviour is unchanged.
+2. Sign in to `/admin` as an administrator, then open `https://ziok.org/api/admin/network` in the same browser. It returns JSON such as:
+   ```json
+   {"connectingAddress":"10.0.1.4","clientAddress":"10.0.1.4","forwardedFor":"203.0.113.7","trustedProxiesConfigured":false}
+   ```
+   `connectingAddress` is the proxy as the app sees it. `forwardedFor` should end with your own public address (compare with any "what is my IP" site). If `forwardedFor` is `null`, the proxy is not forwarding the header and you must not enable trust.
+3. Set `ZIOK_TRUSTED_PROXIES` to the narrowest value that covers `connectingAddress`. A single address is tightest, but Docker may give the proxy a new address after a redeploy, so a small subnet is usually needed. Find the subnet of the network shared by the proxy and the app (in Coolify's server terminal: `docker network inspect <network>`) and use that subnet, not a large private range such as `10.0.0.0/8` or `172.16.0.0/12`. Anything else that can reach the app from inside a trusted range could forge the header.
+4. Redeploy and open `/api/admin/network` again. `trustedProxiesConfigured` must be `true` and `clientAddress` must now equal your public address. If it does not, remove the variable (this returns to the old behaviour) and recheck.
+5. If a CDN such as Cloudflare sits in front of the proxy, `forwardedFor` will list the CDN last, and `clientAddress` will then be the CDN. Add the CDN's published ranges to `ZIOK_TRUSTED_PROXIES` as well, and repeat step 4.
+
+This procedure could not be run against the live Coolify server when the feature was written, so complete steps 2 to 4 after deploying. Coolify's default proxy (Traefik) normally sets `X-Forwarded-For`; verify rather than assume.
 
 ## HSTS
 
@@ -37,7 +48,9 @@ The server sends `Strict-Transport-Security` in production (not in local develop
 
 ## Backups
 
-All editable content, drafts and the audit trail live in one file, `ZIOK_STATE_FILE`. Create a backup with:
+All editable content, drafts and the audit trail live in one file, `ZIOK_STATE_FILE`. Backups protect against bad edits, corruption and server loss, so keep copies in more than one place.
+
+### 1. Scheduled copy on the server
 
 ```sh
 npm run backup
@@ -45,17 +58,31 @@ npm run backup
 node server/backup.cjs
 ```
 
-Each run validates the file, writes `content-<UTC time>-r<revision>.json` with private permissions, skips the run when nothing changed since the newest backup, and prunes to the newest `ZIOK_BACKUP_KEEP` files. A failed or invalid run never deletes existing backups.
+Each run validates the file with the same content checks the server applies at startup (not just its shape), writes `content-<UTC time>-r<revision>.json` with private permissions, skips the run when nothing changed since the newest backup, and prunes to the newest `ZIOK_BACKUP_KEEP` files. An invalid file or failed run never deletes existing backups. In Coolify, add a Scheduled Task to the application that runs `node server/backup.cjs` daily, in the application container.
 
-In Coolify, add a Scheduled Task to the application that runs `node server/backup.cjs` daily, in the application container.
+### 2. Off-server copy (required)
 
-These backups sit on the same volume as the live file. They protect against bad edits and file corruption, not against losing the server or volume. Also copy the backup folder somewhere else on a schedule (another server, object storage, or a periodic download to an administrator's computer), and restore-test it occasionally.
+Copies on the same VPS are lost with the VPS. Keep at least one copy elsewhere:
+
+- **Manual download:** sign in to `/admin` as an administrator and use **Download backup copy** (bottom of the page). It saves the current state as `ziok-content-r<revision>-<date>.json` on your computer. Do this after significant publishing sessions and at least weekly. Store it in cloud storage or on a drive that is not this server.
+- **Automatic pull:** from a second machine that is not the VPS, copy the `backups/` folder on a schedule with `rsync` or `scp` over SSH, or with `rclone` to object storage. Coolify shows where the application's persistent volume lives on the host. Pulling (rather than the server pushing to a remote) keeps remote credentials off the web server.
+
+Treat backup files as confidential: they contain drafts and administrator names in the audit history.
+
+### 3. Check before you rely on a copy
+
+```sh
+node server/backup.cjs --verify path/to/backup.json
+```
+
+This runs the same validation and prints the revision and audit count. Run it on an off-server copy now and then.
 
 ### Restore
 
-1. Stop the application.
-2. Copy the chosen backup over the state file (keep a copy of the current file first).
-3. Start the application and check `/admin`.
+1. Run `--verify` on the file you intend to restore.
+2. Stop the application.
+3. Keep a copy of the current state file, then copy the chosen backup over it.
+4. Start the application and check `/admin` and the public pages.
 
 ## Directory listings: corrections and removal
 
@@ -71,4 +98,4 @@ Suggested handling:
 
 ## Custom 404 page
 
-`404.html` is served with status 404 for unknown pages requested by a browser; API paths and non-browser requests keep the JSON error. It uses root-absolute links because it is shown at any URL depth. On static hosts such as Cloudflare Pages, `404.html` is picked up automatically.
+`404.html` (with the automatically updating copyright year) is served with status 404 for unknown pages requested by a browser; API paths and non-browser requests keep the JSON error. It uses root-absolute links because it is shown at any URL depth. On static hosts such as Cloudflare Pages, `404.html` is picked up automatically.

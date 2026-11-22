@@ -82,6 +82,23 @@ class SiteTests(unittest.TestCase):
             self.assertIn('href="/shared.css"' if file.name == '404.html' else 'href="shared.css"', source)
             self.assertNotRegex(source, r'\son[a-z]+\s*=')
 
+    def test_copyright_year_updates_on_every_page_with_a_footer(self):
+        navigation = (ROOT / 'navigation.js').read_text()
+        self.assertIn('data-copyright-year', navigation)
+        for file in ROOT.glob('*.html'):
+            source = file.read_text()
+            if 'data-copyright-year' in source:
+                self.assertIn('navigation.js', source, file.name)
+        self.assertIn('data-copyright-year', (ROOT / '404.html').read_text())
+
+    def test_directory_notices_have_zomi_translations(self):
+        locale = (ROOT / 'locale.js').read_text()
+        for name in ('businesses', 'churches', 'villages'):
+            source = (ROOT / f'{name}.html').read_text()
+            for sentence in re.findall(r'<p class="note">(.*?)</p>', source):
+                for text in re.findall(r'<span>(.*?)</span>', sentence):
+                    self.assertIn(f"'{text}':", locale, (name, text))
+
     def test_optimized_logo(self):
         logo = ROOT / 'ziok-logo-160.webp'
         self.assertEqual(logo.read_bytes()[8:12], b'WEBP')

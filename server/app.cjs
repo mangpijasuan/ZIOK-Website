@@ -17,6 +17,7 @@ const headers = {
 const token = () => randomBytes(32).toString('hex');
 const ttl = 8 * 60 * 60 * 1000;
 const limitWindow = 15 * 60 * 1000;
+const accountFailureLimit = 10;
 function equalToken(a, b) {
   return typeof a === 'string' && /^[a-f0-9]{64}$/.test(a) && typeof b === 'string' && /^[a-f0-9]{64}$/.test(b) && timingSafeEqual(Buffer.from(a), Buffer.from(b));
 }
@@ -57,7 +58,7 @@ function notFound(req, res, pathname) {
 
 function createApp({ users, stateFile, origin, secureCookies = true, trustedProxies = parseTrustedProxies(''), hsts = '' }) {
   let state = initialState(stateFile);
-  const sessions = new Map(), attempts = new Map();
+  const sessions = new Map(), attempts = new Map(), accountFailures = new Map();
   let pendingLogins = 0;
   const cookieName = secureCookies ? '__Host-ziok-session' : 'ziok-local-session';
   const cookie = (value, age) => `${cookieName}=${value}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${age}${secureCookies ? '; Secure' : ''}`;
@@ -84,14 +85,24 @@ function createApp({ users, stateFile, origin, secureCookies = true, trustedProx
         const username = typeof input?.username === 'string' && /^[A-Za-z0-9_.-]{1,64}$/.test(input.username) ? input.username : '';
         const now = Date.now(), key = clientAddress(req, trustedProxies);
         for (const [id, entry] of attempts) if (entry.until <= now) attempts.delete(id);
+        for (const [id, entry] of accountFailures) if (entry.until <= now) accountFailures.delete(id);
+        // Per-account limit, keyed on the submitted name whether or not it exists, so a lock reveals nothing about which accounts are real.
+        if ((accountFailures.get(username)?.count || 0) >= accountFailureLimit) return json(res, 429, { error: 'Try again later' });
         if (attempts.size >= 1000 && !attempts.has(key)) return json(res, 429, { error: 'Try again later' });
         const entry = attempts.get(key) || { count: 0, until: now + limitWindow };
         if (entry.count >= 20 || pendingLogins >= 4) return json(res, 429, { error: 'Try again later' });
         entry.count++; attempts.set(key, entry); pendingLogins++;
         const user = users.get(username);
         let valid; try { valid = await verifyPassword(input?.password, user?.passwordHash); } finally { pendingLogins--; }
-        if (!user || !valid) return json(res, 401, { error: 'Invalid credentials' });
-        attempts.delete(key);
+        if (!user || !valid) {
+          const failures = accountFailures.get(username) || { count: 0, until: now + limitWindow };
+          if (failures.count > 0 || accountFailures.size < 1000) {
+            failures.count++; accountFailures.set(username, failures);
+            if (failures.count === accountFailureLimit) console.warn(`Sign-in for account "${username}" locked for 15 minutes after repeated failures`);
+          }
+          return json(res, 401, { error: 'Invalid credentials' });
+        }
+        attempts.delete(key); accountFailures.delete(username);
         for (const [id, session] of sessions) if (session.expires <= now) sessions.delete(id);
         if (sessions.size >= 1000) return json(res, 503, { error: 'Try again later' });
         const previous = sessionFor(req); if (previous) sessions.delete(previous.id);
@@ -104,6 +115,17 @@ function createApp({ users, stateFile, origin, secureCookies = true, trustedProx
         if (method === 'POST' && !equalToken(req.headers['x-csrf-token'], session.csrf)) return json(res, 403, { error: 'Invalid request token' });
         if (pathname === '/api/admin/session' && method === 'GET') return json(res, 200, { username: session.username, role: session.role, csrf: session.csrf });
         if (pathname === '/api/admin/state' && method === 'GET') return json(res, 200, { revision: state.revision, draft: state.draft, published: state.published !== null, audit: session.role === 'admin' ? state.audit.slice(-100).reverse() : [] });
+        if (pathname === '/api/admin/network' && method === 'GET') {
+          if (session.role !== 'admin') return json(res, 403, { error: 'Administrators only' });
+          // Lets an administrator confirm the proxy settings: connectingAddress is the proxy to trust, clientAddress should be the visitor's own public address.
+          return json(res, 200, { connectingAddress: clientAddress(req, parseTrustedProxies('')), clientAddress: clientAddress(req, trustedProxies), forwardedFor: req.headers['x-forwarded-for'] || null, trustedProxiesConfigured: trustedProxies.configured });
+        }
+        if (pathname === '/api/admin/backup' && method === 'GET') {
+          if (session.role !== 'admin') return json(res, 403, { error: 'Administrators only' });
+          const name = `ziok-content-r${state.revision}-${new Date().toISOString().slice(0, 10)}.json`;
+          res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Content-Disposition': `attachment; filename="${name}"`, 'Cache-Control': 'no-store' });
+          return res.end(JSON.stringify(state, null, 2));
+        }
         if (pathname === '/api/admin/logout' && method === 'POST') { sessions.delete(session.id); res.setHeader('Set-Cookie', cookie('', 0)); return json(res, 200, { ok: true }); }
         if (method === 'POST' && ['/api/admin/save', '/api/admin/publish'].includes(pathname)) {
           const publish = pathname.endsWith('/publish');

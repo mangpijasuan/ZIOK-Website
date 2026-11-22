@@ -1,11 +1,28 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { randomBytes } = require('node:crypto');
+const { migrateContent } = require('./content.cjs');
 
 const root = path.resolve(__dirname, '..');
 const NAME = /^content-\d{8}T\d{6}Z-r(\d+)\.json$/;
 
 function stamp(date) { return date.toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z'); }
+
+// Validates a state file the same way the server does when it starts, so a
+// backup that passes here can be restored. Content goes through the real
+// content validation, not just a shape check.
+function validateState(state) {
+  if (!state || typeof state !== 'object' || !Number.isSafeInteger(state.revision) || state.revision < 0 || !Array.isArray(state.audit)) throw new Error('State file is not valid; nothing was backed up');
+  for (const entry of state.audit) {
+    if (!entry || typeof entry.at !== 'string' || Number.isNaN(Date.parse(entry.at)) || typeof entry.actor !== 'string' || typeof entry.action !== 'string' || !Number.isSafeInteger(entry.revision) || entry.revision < 1 || entry.revision > state.revision) throw new Error('State file has an invalid audit entry; nothing was backed up');
+  }
+  if (typeof state.draft !== 'object' || state.draft === null) throw new Error('State file is not valid; nothing was backed up');
+  try {
+    migrateContent(state.draft);
+    if (state.published !== null) migrateContent(state.published);
+  } catch (error) { throw new Error(`State file content failed validation (${error.message}); nothing was backed up`); }
+  return state;
+}
 
 // Copies the content state (drafts, published content and audit history) to a
 // timestamped file. A backup is skipped when the newest one is already at the
@@ -13,8 +30,8 @@ function stamp(date) { return date.toISOString().replace(/[-:]/g, '').replace(/\
 function backup({ stateFile, directory = path.join(path.dirname(stateFile), 'backups'), keep = 30, now = new Date() }) {
   if (!Number.isInteger(keep) || keep < 1) throw new Error('Backup retention must be a positive integer');
   const raw = fs.readFileSync(stateFile, 'utf8');
+  validateState(JSON.parse(raw));
   const state = JSON.parse(raw);
-  if (!Number.isSafeInteger(state.revision) || state.revision < 0 || !Array.isArray(state.audit) || typeof state.draft !== 'object' || state.draft === null) throw new Error('State file is not valid; nothing was backed up');
   fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
   const existing = () => fs.readdirSync(directory).map(name => ({ name, match: NAME.exec(name) })).filter(item => item.match)
     .map(item => ({ name: item.name, revision: Number(item.match[1]) })).sort((a, b) => a.name.localeCompare(b.name));
@@ -31,6 +48,13 @@ function backup({ stateFile, directory = path.join(path.dirname(stateFile), 'bac
 
 if (require.main === module) {
   try {
+    // node server/backup.cjs --verify <file>: check a backup or off-site copy before restoring it.
+    if (process.argv[2] === '--verify') {
+      if (!process.argv[3]) throw new Error('Usage: node server/backup.cjs --verify <file>');
+      const state = validateState(JSON.parse(fs.readFileSync(path.resolve(process.argv[3]), 'utf8')));
+      console.log(`Backup is valid (revision ${state.revision}, ${state.audit.length} audit entries)`);
+      return;
+    }
     const stateFile = path.resolve(process.env.ZIOK_STATE_FILE || path.join(root, 'var', 'content.json'));
     const keep = Number(process.env.ZIOK_BACKUP_KEEP || 30);
     const directory = process.env.ZIOK_BACKUP_DIR ? path.resolve(process.env.ZIOK_BACKUP_DIR) : undefined;
@@ -41,4 +65,4 @@ if (require.main === module) {
     process.exitCode = 1;
   }
 }
-module.exports = { backup };
+module.exports = { backup, validateState };
