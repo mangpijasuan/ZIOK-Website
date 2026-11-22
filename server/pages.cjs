@@ -52,7 +52,7 @@ const paragraphs = value => String(value || '').split(/\n{2,}/).map(part => part
 const view = (item, lang) => ({ ...item, title: (lang === 'zo' && item.titleZo) || item.title, body: (lang === 'zo' && item.bodyZo) || item.body });
 const hasZomi = item => Boolean(item.titleZo || item.bodyZo);
 
-function layout({ lang, origin, path, title, description, hero, body, alternates, jsonld, kind }) {
+function layout({ lang, origin, path, title, description, hero, body, alternates, jsonld, kind, email = 'admin@ziok.org' }) {
   const t = ui(lang);
   const language = languages[lang];
   const url = origin + path;
@@ -81,7 +81,7 @@ function layout({ lang, origin, path, title, description, hero, body, alternates
 <nav class="site-nav" aria-label="Main navigation">${links}</nav>${switcher}</div></header>
 <section class="hero"><div class="wrap">${hero}</div></section>
 <main id="main-content" tabindex="-1" class="wrap content-main">${body}</main>
-<footer class="site-footer"><div class="wrap">© <span data-copyright-year>${new Date().getFullYear()}</span> ${siteName}, Inc. · <a href="mailto:admin@ziok.org">admin@ziok.org</a></div></footer>
+<footer class="site-footer"><div class="wrap">© <span data-copyright-year>${new Date().getFullYear()}</span> ${siteName}, Inc. · <a href="mailto:${escapeHtml(email)}">${escapeHtml(email)}</a></div></footer>
 <script src="/navigation.js"></script></body></html>`;
 }
 
@@ -117,7 +117,7 @@ function renderPage(kind, lang, slug, content, origin) {
     }).join('');
     const hero = `<div class="kicker">${escapeHtml(siteName)}</div><h1>${heading}</h1><p class="lead">${intro}</p>`;
     const body = cards ? `<div class="item-grid">${cards}</div>` : `<p>${t.markup(collection === 'news' ? 'noNews' : 'noEvents')}</p>`;
-    return { html: layout({ lang, origin, path: base, title: pageTitle(t.text(headingKey)), description, hero, body, alternates: hubAlternates, kind, jsonld: breadcrumb(origin, [home, [listName, base]]) }) };
+    return { html: layout({ lang, origin, path: base, title: pageTitle(t.text(headingKey)), description, hero, body, alternates: hubAlternates, kind, email: content.contact?.email, jsonld: breadcrumb(origin, [home, [listName, base]]) }) };
   }
 
   const raw = items.find(entry => entry.slug === slug);
@@ -139,7 +139,7 @@ function renderPage(kind, lang, slug, content, origin) {
   const factList = facts.filter(Boolean).map(([label, value]) => `<div><dt>${label}</dt><dd>${value}</dd></div>`).join('');
   const hero = `<div class="kicker">${escapeHtml(siteName)}</div><h1>${escapeHtml(item.title)}</h1>`;
   const body = `<nav class="crumbs" aria-label="Breadcrumb"><a href="${base}">${t.markup(collection === 'news' ? 'allNews' : 'allEvents')}</a></nav><article>${factList ? `<dl class="facts">${factList}</dl>` : ''}<div class="prose">${paragraphs(item.body)}</div></article>`;
-  return { html: layout({ lang, origin, path, title: pageTitle(item.title), description, hero, body, alternates, kind, jsonld }) };
+  return { html: layout({ lang, origin, path, title: pageTitle(item.title), description, hero, body, alternates, kind, jsonld, email: content.contact?.email }) };
 }
 
 // Returns { status, html } for a news or events address, or null when there is no such page (the caller then answers 404).

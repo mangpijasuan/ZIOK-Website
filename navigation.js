@@ -27,3 +27,5 @@
 document.querySelectorAll('[data-copyright-year]').forEach(element => {
   element.textContent = String(new Date().getFullYear());
 });
+// The contact address is editable in the administrator portal; static hosts keep the address written in the page.
+(function(){var email=typeof ZIOK_CONTENT!=='undefined'&&ZIOK_CONTENT&&ZIOK_CONTENT.contact&&ZIOK_CONTENT.contact.email;if(!/^[^\s@<>"]+@[^\s@<>"]+$/.test(email||''))return;document.querySelectorAll('a[data-contact-email]').forEach(function(a){a.href='mailto:'+email;a.textContent=email})})();

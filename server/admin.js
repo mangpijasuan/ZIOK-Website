@@ -57,7 +57,7 @@ function addRow(type, data = {}) {
 }
 function markDirty() { dirty = true; $('publish').disabled = true; updateDraftBadge(); }
 function snapshot() {
-  const content = { media: Object.fromEntries(mediaFields.map(name => [name, $(name).value])) };
+  const content = { contact: { email: $('contactEmail').value }, media: Object.fromEntries(mediaFields.map(name => [name, $(name).value])) };
   for (const type of Object.keys(fields)) content[type] = [...$(type + '-items').children].map(row => Object.fromEntries([...row.querySelectorAll('[data-field]')].map(input => [input.dataset.field, input.value])));
   return content;
 }
@@ -66,6 +66,7 @@ async function load() {
   for (const type of Object.keys(fields)) { $(type + '-items').replaceChildren(); data.draft[type].forEach(item => addRow(type, item)); }
   document.querySelectorAll('[data-filter]').forEach(input => input.value = '');
   mediaFields.forEach(name => $(name).value = data.draft.media[name]);
+  $('contactEmail').value = data.draft.contact.email;
   $('audit').replaceChildren();
   for (const record of data.audit) { const item = document.createElement('li'); item.textContent = `${record.at} — ${record.actor}: ${record.action} (revision ${record.revision})`; $('audit').append(item); }
   dirty = false; $('publish').disabled = false; refreshCounts(); updateDraftBadge();

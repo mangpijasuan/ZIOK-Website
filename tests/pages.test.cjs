@@ -200,3 +200,18 @@ test('public content exposes page names so the homepage can link to them', async
     assert.ok(script.includes(`"slug":"${content.news[0].slug}"`));
   });
 });
+
+test('pages use the contact email from the content', () => {
+  const content = { ...sample(), contact: { email: 'office@example.org' } };
+  const html = page('/news/', content).html;
+  assert.match(html, /mailto:office@example\.org/);
+  assert.doesNotMatch(html, /admin@ziok\.org/);
+});
+
+test('contact email is validated, lower-cased and defaults for older saved content', () => {
+  const input = base();
+  delete input.contact;
+  assert.equal(validateContent(input).contact.email, 'admin@ziok.org');
+  assert.equal(migrateContent({ ...input, contact: { email: ' Office@Example.org ' } }).contact.email, 'office@example.org');
+  for (const bad of ['', 'nope', 'a@b', 'a b@c.org', '<x>@c.org']) assert.throws(() => validateContent({ ...input, contact: { email: bad } }), /Invalid/, bad);
+});
