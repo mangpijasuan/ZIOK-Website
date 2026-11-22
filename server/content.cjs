@@ -15,15 +15,47 @@ const defaults = {
   media: { youtubeChannel: '', facebookPage: '', youtubeVideoId: '' }
 };
 
+function slugify(title) {
+  return String(title).normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60).replace(/-+$/, '') || 'item';
+}
+
 function validateContent(input) {
   function text(value, limit, required = false) {
     if (typeof value !== 'string' || value.length > limit || (required && !value.trim())) throw new Error('Invalid content field');
     return value.trim();
   }
-  function list(value, field) {
-    if (!Array.isArray(value) || value.length > 50) throw new Error('Each list must contain 0–50 entries');
-    return value.map(item => ({ title: text(item?.title, 150, true), titleZo: text(item?.titleZo, 150), body: text(item?.body, 1000), bodyZo: text(item?.bodyZo, 1000), [field]: text(item?.[field], 80) }));
+  // Page names (slugs) become part of public addresses such as /news/<slug>. They are saved on first
+  // use and never re-derived from the title, so editing a title does not break links or search results.
+  function slugs(items) {
+    const taken = new Set();
+    for (const item of items) {
+      if (!item.slug) continue;
+      if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(item.slug) || item.slug.length > 80) throw new Error('Page names use lowercase letters, numbers and hyphens');
+      if (taken.has(item.slug)) throw new Error('Duplicate page name');
+      taken.add(item.slug);
+    }
+    for (const item of items) {
+      if (item.slug) continue;
+      const base = slugify(item.title); let candidate = base, number = 2;
+      while (taken.has(candidate)) candidate = `${base}-${number++}`;
+      taken.add(candidate); item.slug = candidate;
+    }
+    return items;
   }
+  function day(value) {
+    const cleaned = text(value ?? '', 10);
+    if (!cleaned) return '';
+    const parsed = new Date(`${cleaned}T00:00:00Z`);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(cleaned) || Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== cleaned) throw new Error('Dates use the form YYYY-MM-DD');
+    return cleaned;
+  }
+  function listing(value) {
+    if (!Array.isArray(value) || value.length > 50) throw new Error('Each list must contain 0–50 entries');
+    return value;
+  }
+  const common = item => ({ title: text(item?.title, 150, true), titleZo: text(item?.titleZo, 150), body: text(item?.body, 1000), bodyZo: text(item?.bodyZo, 1000) });
+  const news = value => slugs(listing(value).map(item => ({ ...common(item), tag: text(item?.tag, 80), slug: text(item?.slug ?? '', 80), date: day(item?.date) })));
+  const events = value => slugs(listing(value).map(item => ({ ...common(item), date: text(item?.date, 80), slug: text(item?.slug ?? '', 80), startDate: day(item?.startDate), location: text(item?.location ?? '', 200) })));
   function url(value, hosts) {
     const cleaned = text(value, 500);
     if (!cleaned) return '';
@@ -63,7 +95,7 @@ function validateContent(input) {
   if (documents.length !== 2) throw new Error('Keep both governance records');
   const video = text(input?.media?.youtubeVideoId, 11);
   if (video && !/^[A-Za-z0-9_-]{11}$/.test(video)) throw new Error('Invalid YouTube video ID');
-  return { businesses, churches, villages, terms, leadership, documents, news: list(input?.news, 'tag'), events: list(input?.events, 'date'), media: {
+  return { businesses, churches, villages, terms, leadership, documents, news: news(input?.news), events: events(input?.events), media: {
     youtubeChannel: url(input?.media?.youtubeChannel, ['youtube.com', 'www.youtube.com', 'm.youtube.com']),
     facebookPage: url(input?.media?.facebookPage, ['facebook.com', 'www.facebook.com', 'm.facebook.com']), youtubeVideoId: video
   } };
@@ -79,4 +111,4 @@ function migrateContent(input) {
   if (churchSignature(merged.churches) === churchSignature(legacyChurches)) merged.churches = structuredClone(communityDefaults.churches);
   return validateContent(merged);
 }
-module.exports = { defaults, validateContent, migrateContent };
+module.exports = { defaults, validateContent, migrateContent, slugify };

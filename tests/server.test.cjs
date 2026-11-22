@@ -135,7 +135,10 @@ test('sitemap dates move only when content is published; admin and API responses
     const map = await fetch(`${base}/sitemap.xml`);
     assert.equal(map.status, 200);
     assert.match(map.headers.get('content-type'), /application\/xml/);
-    assert.equal(await map.text(), await fs.readFile(path.join(__dirname, '..', 'sitemap.xml'), 'utf8'), 'unpublished state serves the committed dates');
+    const served = await map.text();
+    const committed = await fs.readFile(path.join(__dirname, '..', 'sitemap.xml'), 'utf8');
+    assert.ok(served.startsWith(committed.slice(0, committed.indexOf('</urlset>')).trimEnd()), 'unpublished state keeps the committed pages and dates');
+    assert.match(served, /<loc>https:\/\/ziok\.test\/news\/a-home-for-the-zomi-community<\/loc>/, 'generated pages are listed');
     assert.match((await fetch(`${base}/ziok-social.jpg`)).headers.get('content-type'), /image\/jpeg/);
     assert.match((await fetch(`${base}/favicon.ico`)).headers.get('content-type'), /image\/x-icon/);
     for (const name of ['favicon-48.png', 'favicon-192.png', 'apple-touch-icon.png']) assert.equal((await fetch(`${base}/${name}`)).status, 200, name);

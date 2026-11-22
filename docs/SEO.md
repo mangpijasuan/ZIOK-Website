@@ -26,8 +26,40 @@ Run `python3 scripts/build-brand-assets.py` (needs Pillow) to rebuild `ziok-soci
 3. **Rich results:** run the home page through Google's Rich Results Test to confirm the structured data is read without errors.
 4. **Check the favicon:** open `https://ziok.org/favicon.ico` directly.
 
-## Known limits (planned next)
+## News and event pages
 
-- News, events and directories are drawn in the browser from published content. Search engines can render this, but they cannot link to an individual news item or event until those get their own pages.
-- Zomi text appears only after a visitor switches language, so search engines see English. Separate Zomi pages with `hreflang` would fix that. Google's `hreflang` expects two-letter language codes where they exist; Tedim Chin (`ctd`) has only a three-letter code, so test how it is handled before relying on it.
+Every news item and event has its own public page, built by the Node server from the published content (or the original content until something is published). Static-only hosting cannot serve these pages; the Coolify deployment can.
+
+| Address | Content |
+|---|---|
+| `/news/`, `/events/` | Lists of all items |
+| `/news/<page-name>`, `/events/<page-name>` | One item, in English |
+| `/zo/news/...`, `/zo/events/...` | The same pages in Zomi |
+
+In the administrator portal, each news item and event has these extra fields:
+
+- **Page name:** the last part of the address. Leave it blank and one is made from the English title. Once saved it never changes when the title changes, so shared links and search results keep working. Use lowercase letters, numbers and hyphens.
+- **Published date** (news) and **Start date** (events): `YYYY-MM-DD`. Optional. Real dates are what let Google show a news article's date or list an event.
+- **Location** (events): optional free text, such as "Tulsa, Oklahoma" or a venue and address.
+
+What search engines receive:
+
+- Each page has its own title, description, canonical address and sharing tags, plus a breadcrumb. News with a date also carries `NewsArticle` data. An event carries `Event` data only when it has both a start date and a location, because Google's event listings require both. The card label (for example "FEB 20") is display text only.
+- A Zomi page exists only when the item has a Zomi title or Zomi text; otherwise `/zo/...` answers 404 and the item is left out of the Zomi list and the sitemap. English and Zomi versions point at each other with `hreflang`, and the English page is the default.
+- The sitemap lists every generated page. A news item's date is its own published date; everything else uses the date of the latest publish. Items disappear from the sitemap when they are removed and published.
+- On the home page, each card title links to its page, with "View all" links to the two lists. These links appear once content has been published from the portal.
+
+### Zomi wording to confirm
+
+Zomi interface words on the generated pages come from the site's existing glossary (Abulpi, Thuthak, Pawite, Makaihna, Laite, Kizopna and the news and events headings). Words with no glossary entry are shown in English and marked `lang="en"`: published, date, location, all news, all events, read more, skip to content, and the empty-list messages. Add reviewed translations to the `zo` table at the top of `server/pages.cjs` and they take effect automatically. The home page's "View all news / View all events" links use draft Zomi wording ("Thuthak khempeuh en in", "Pawite khempeuh en in") that a Zomi reader should confirm.
+
+### Language codes
+
+The Zomi pages are tagged `ctd` (Tedim Chin). Google's `hreflang` guidance prefers two-letter codes where they exist, and `ctd` has only a three-letter code. Pages are still indexable and the English pages are unaffected, but check in Search Console (International Targeting and the page indexing report) that the alternates are accepted. If they are not, the pages remain valid as stand-alone Zomi pages.
+
+## Known limits
+
+- The six static pages (home, leadership, documents and the three directories) remain single English addresses with the browser language switch. Their Zomi text is added in the browser, so search engines mostly see English there. Zomi addresses for these pages would be a further step.
+- Directories, leadership and the home-page cards are still drawn in the browser from published content; search engines can render them, but individual directory entries have no pages of their own.
+- Event times and online events are not modelled yet; events are dated by day.
 - The organization record has no `sameAs` links yet, because the Facebook and YouTube addresses are set in the administrator portal rather than in the page source.
