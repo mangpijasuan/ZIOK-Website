@@ -118,6 +118,13 @@ function createApp({ users, stateFile, origin, secureCookies = true }) {
     } catch (error) { console.error('Request failed:', error.code || error.name); if (!res.headersSent) json(res, 500, { error: 'Server error' }); else res.end(); }
   });
 }
+function resolveBindHost(value, insecure) {
+  const host = value || '127.0.0.1';
+  if (!['127.0.0.1', '0.0.0.0'].includes(host) || (insecure && host !== '127.0.0.1')) {
+    throw new Error('Invalid ZIOK_BIND_HOST: use loopback for local mode or 0.0.0.0 behind a production reverse proxy');
+  }
+  return host;
+}
 if (require.main === module) {
   const insecure = process.env.ZIOK_INSECURE_LOCAL === 'true';
   const origin = process.env.ZIOK_PUBLIC_ORIGIN || (insecure ? 'http://127.0.0.1:8080' : '');
@@ -128,6 +135,7 @@ if (require.main === module) {
   const users = parseUsers(process.env.ZIOK_USERS_JSON);
   const stateFile = path.resolve(process.env.ZIOK_STATE_FILE || path.join(root, 'var', 'content.json'));
   const server = createApp({ users, stateFile, origin, secureCookies: !insecure });
-  server.listen(port, '127.0.0.1', () => console.log(`ZIOK server listening on loopback port ${port}`));
+  const host = resolveBindHost(process.env.ZIOK_BIND_HOST, insecure);
+  server.listen(port, host, () => console.log(host === '127.0.0.1' ? `ZIOK server listening on loopback port ${port}` : `ZIOK server listening on ${host}:${port}`));
 }
-module.exports = { createApp };
+module.exports = { createApp, resolveBindHost };
