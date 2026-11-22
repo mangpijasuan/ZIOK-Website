@@ -27,3 +27,6 @@
 document.querySelectorAll('[data-copyright-year]').forEach(element => {
   element.textContent = String(new Date().getFullYear());
 });
+
+// Directory pages show when the published content last changed (set by the server; absent on static hosts).
+(function(){var el=document.querySelector('[data-updated]');if(!el||typeof ZIOK_UPDATED==='undefined'||!ZIOK_UPDATED)return;var d=new Date(ZIOK_UPDATED+'T00:00:00Z');if(isNaN(d))return;el.textContent='Last updated '+d.toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric',timeZone:'UTC'});el.hidden=false})();

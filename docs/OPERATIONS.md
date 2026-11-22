@@ -105,3 +105,7 @@ Suggested handling:
 - **Node version**: the Dockerfile and CI both use Node 24 (`.nvmrc`). `engines` keeps 22 as the minimum. To move to a newer Node, change `.nvmrc` and the Dockerfile `FROM` line together, then let CI pass before deploying.
 - **Dependabot** (`.github/dependabot.yml`) opens pull requests for npm (weekly, max 3), GitHub Actions and the Docker base image (monthly). The only npm packages are test tools (Playwright, axe-core); the running site has no dependencies. Review and merge them like any other PR: CI must pass, and nothing deploys until you redeploy in Coolify (or Coolify's webhook fires on merge to `main`).
 - **Before every release**: run `python -m unittest discover -s tests`, `npm run test:server` and `npm run test:browser`, take a backup (`npm run backup`), then deploy.
+
+## "Last updated" on directory pages
+
+The business, church and village pages show "Last updated <date>" once something has been published in the administrator portal. The date is the day of the most recent **publish** (drafts and saves do not count), the same date the sitemap uses. Static hosts without the Node server show no date. The label is English only until a Zomi translation is supplied in `locale.js`.
