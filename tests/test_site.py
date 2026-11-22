@@ -222,6 +222,12 @@ class SiteTests(unittest.TestCase):
         for name in ('index',):
             self.assertNotIn('directory.css', (ROOT / f'{name}.html').read_text())
 
+    def test_directories_can_show_the_last_updated_date(self):
+        for name in ('businesses', 'churches', 'villages'):
+            self.assertIn('data-updated hidden', (ROOT / f'{name}.html').read_text(), name)
+        self.assertIn('const ZIOK_UPDATED = null;', (ROOT / 'public-content.js').read_text())
+        self.assertIn('data-updated', (ROOT / 'navigation.js').read_text())
+
     def test_optimized_logo(self):
         logo = ROOT / 'ziok-logo-160.webp'
         self.assertEqual(logo.read_bytes()[8:12], b'WEBP')

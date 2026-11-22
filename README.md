@@ -4,7 +4,7 @@ The public website runs without a build step. For the full experience, including
 
 ## Run locally (recommended: full website and admin portal)
 
-Prerequisites: Git and Node.js 22 or newer (including npm).
+Prerequisites: Git and Node.js 22 or newer (including npm). Production (Docker) and CI run Node 24, pinned in `.nvmrc`; the code is tested on 22 and 24.
 
 ### 1. Clone the repository
 

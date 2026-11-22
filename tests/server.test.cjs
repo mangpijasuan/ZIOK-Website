@@ -88,6 +88,7 @@ test('authenticated draft, publishing, audit and durable data lifecycle', async 
     const save = await call('/api/admin/save', { ...editor, payload: { revision: 0, content } });
     assert.equal(save.status, 200);
     assert.match(await (await call('/public-content.js')).text(), /ZIOK_CONTENT = null/);
+    assert.match(await (await call('/public-content.js')).text(), /ZIOK_UPDATED = null/, 'no date before the first publish');
     assert.equal((await call('/api/admin/publish', { ...editor, payload: { revision: 1 } })).status, 403);
     const admin = await login('admin');
     assert.equal((await call('/api/admin/publish', { cookie: admin.cookie, payload: { revision: 1 } })).status, 403);
@@ -95,6 +96,7 @@ test('authenticated draft, publishing, audit and durable data lifecycle', async 
     assert.equal((await call('/api/admin/publish', { ...admin, payload: { revision: 1 } })).status, 200);
     assert.match(await (await call('/public-content.js')).text(), /Approved community announcement/);
     const published = await (await call('/public-content.js')).text();
+    assert.match(published, new RegExp(`ZIOK_UPDATED = "${new Date().toISOString().slice(0, 10)}"`), 'publish date is exposed');
     for (const value of ['Edited test business', 'Edited test church', 'Edited test village association', 'Test officer', 'Approved test document note']) assert.ok(published.includes(value));
     assert.equal((await call('/documents/ziok-constitution-september-2024.pdf')).status, 200);
     const current = await (await call('/api/admin/state', admin)).json();
