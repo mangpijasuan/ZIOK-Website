@@ -2,6 +2,7 @@
   "name": "ziok-website",
   "private": true,
   "license": "MIT",
+  "engines": { "node": ">=22" },
   "scripts": {
     "start": "node server/app.cjs",
     "backup": "node server/backup.cjs",
