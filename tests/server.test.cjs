@@ -3,9 +3,17 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
-const { createApp } = require('../server/app.cjs');
+const { createApp, resolveBindHost } = require('../server/app.cjs');
 const { hashPassword, parseUsers, verifyPassword } = require('../server/auth.cjs');
 const { defaults, validateContent, migrateContent } = require('../server/content.cjs');
+
+test('bind host defaults to loopback and permits explicit production container networking only', () => {
+  assert.equal(resolveBindHost(undefined, false), '127.0.0.1');
+  assert.equal(resolveBindHost(undefined, true), '127.0.0.1');
+  assert.equal(resolveBindHost('0.0.0.0', false), '0.0.0.0');
+  assert.throws(() => resolveBindHost('0.0.0.0', true));
+  assert.throws(() => resolveBindHost('invalid-host', false));
+});
 
 test('password configuration and content validation', async () => {
   const password = 'test-only-password-for-ci';
