@@ -7,8 +7,8 @@ const { verifyPassword, parseUsers } = require('./auth.cjs');
 const { parseTrustedProxies, clientAddress } = require('./proxy.cjs');
 
 const root = path.resolve(__dirname, '..');
-const publicFiles = new Set(['index.html', 'leadership.html', 'businesses.html', 'churches.html', 'villages.html', 'governance.html', 'reader.html', 'home.js', 'navigation.js', 'locale.js', 'leadership.js', 'businesses.js', 'churches.js', 'villages.js', 'governance.js', 'community-data.js', 'reader.js', 'media-config.js', 'shared.css', 'ziok-logo-160.webp', 'ziok-logo.png', 'robots.txt', 'sitemap.xml']);
-const mime = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.webp': 'image/webp', '.png': 'image/png', '.pdf': 'application/pdf', '.txt': 'text/plain; charset=utf-8', '.xml': 'application/xml; charset=utf-8' };
+const publicFiles = new Set(['index.html', 'leadership.html', 'businesses.html', 'churches.html', 'villages.html', 'governance.html', 'reader.html', 'home.js', 'navigation.js', 'locale.js', 'leadership.js', 'businesses.js', 'churches.js', 'villages.js', 'governance.js', 'community-data.js', 'reader.js', 'media-config.js', 'shared.css', 'ziok-logo-160.webp', 'ziok-logo.png', 'ziok-social.jpg', 'favicon.ico', 'favicon-48.png', 'favicon-192.png', 'apple-touch-icon.png', 'robots.txt', 'sitemap.xml']);
+const mime = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.webp': 'image/webp', '.png': 'image/png', '.jpg': 'image/jpeg', '.ico': 'image/x-icon', '.pdf': 'application/pdf', '.txt': 'text/plain; charset=utf-8', '.xml': 'application/xml; charset=utf-8' };
 const headers = {
   'X-Content-Type-Options': 'nosniff', 'X-Frame-Options': 'DENY', 'Referrer-Policy': 'strict-origin-when-cross-origin',
   'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
@@ -48,6 +48,15 @@ function sendFile(req, res, file, cache = 'no-cache', status = 200) {
   if (req.method === 'HEAD') res.end(); else fs.createReadStream(file).pipe(res);
 }
 
+// Raises each <lastmod> to the date of the latest publish. Edits and drafts never change it,
+// and neither does the passage of time, so dates move only when content actually goes live.
+function sitemapWithPublishDate(xml, state) {
+  const dates = state.published === null ? [] : state.audit.filter(entry => entry.action === 'publish').map(entry => String(entry.at).slice(0, 10));
+  const latest = dates.sort().at(-1);
+  if (!latest) return xml;
+  return xml.replace(/<lastmod>(\d{4}-\d{2}-\d{2})<\/lastmod>/g, (match, date) => `<lastmod>${date > latest ? date : latest}</lastmod>`);
+}
+
 // Browsers navigating to an unknown page get the branded 404 page; API and
 // non-HTML requests keep the JSON response.
 function notFound(req, res, pathname) {
@@ -78,7 +87,7 @@ function createApp({ users, stateFile, origin, secureCookies = true, trustedProx
     try {
       const pathname = new URL(req.url, origin).pathname;
       const method = req.method;
-      if (pathname.startsWith('/api/') || pathname === '/admin' || pathname.startsWith('/admin/')) res.setHeader('Cache-Control', 'no-store');
+      if (pathname.startsWith('/api/') || pathname === '/admin' || pathname.startsWith('/admin/')) { res.setHeader('Cache-Control', 'no-store'); res.setHeader('X-Robots-Tag', 'noindex, nofollow'); }
       if (method === 'POST' && req.headers.origin !== origin) return json(res, 403, { error: 'Origin not allowed' });
       if (pathname === '/api/admin/login' && method === 'POST') {
         let input; try { input = await body(req); } catch { return json(res, 400, { error: 'Invalid request' }); }
@@ -143,6 +152,12 @@ function createApp({ users, stateFile, origin, secureCookies = true, trustedProx
         const script = `const ZIOK_CONTENT = ${JSON.stringify(state.published).replace(/</g, '\\u003c')};\n`;
         res.writeHead(200, { 'Content-Type': mime['.js'], 'Cache-Control': 'no-store' }); return res.end(method === 'HEAD' ? undefined : script);
       }
+      if (pathname === '/sitemap.xml') {
+        // Published content is editable in the portal, so a publish counts as a real change to every page.
+        const body = sitemapWithPublishDate(fs.readFileSync(path.join(root, 'sitemap.xml'), 'utf8'), state);
+        res.writeHead(200, { 'Content-Type': mime['.xml'], 'Cache-Control': 'no-cache', 'Content-Length': Buffer.byteLength(body) });
+        return res.end(method === 'HEAD' ? undefined : body);
+      }
       if (pathname === '/admin' || pathname === '/admin/') return sendFile(req, res, path.join(__dirname, 'admin.html'), 'no-store');
       if (pathname === '/admin/admin.js' || pathname === '/admin/admin.css') return sendFile(req, res, path.join(__dirname, pathname.split('/').pop()), 'no-store');
       const name = pathname === '/' ? 'index.html' : pathname.slice(1);
@@ -182,3 +197,4 @@ if (require.main === module) {
   server.listen(port, host, () => console.log(host === '127.0.0.1' ? `ZIOK server listening on loopback port ${port}` : `ZIOK server listening on ${host}:${port}`));
 }
 module.exports = { createApp, resolveBindHost, hstsValue, securityHeaders: headers };
+module.exports.sitemapWithPublishDate = sitemapWithPublishDate;
