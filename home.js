@@ -104,3 +104,23 @@ if (facebook) {
   addMediaLink($('photos'), facebook, 'Visit Facebook Page');
   $('fbstatus').textContent = 'Facebook · Community updates';
 }
+
+// Only configured official profiles become clickable; empty slots are non-interactive.
+const socialHosts = {
+  facebookPage: ['facebook.com', 'www.facebook.com', 'm.facebook.com'],
+  youtubeChannel: ['youtube.com', 'www.youtube.com', 'm.youtube.com'],
+  instagramPage: ['instagram.com', 'www.instagram.com'],
+  tiktokPage: ['tiktok.com', 'www.tiktok.com', 'm.tiktok.com'],
+  xPage: ['x.com', 'www.x.com', 'twitter.com', 'www.twitter.com']
+};
+document.querySelectorAll('[data-social]').forEach(icon => {
+  const key = icon.dataset.social;
+  const url = approvedUrl(media[key], socialHosts[key]);
+  if (!url) return;
+  const link = document.createElement('a');
+  const name = icon.getAttribute('aria-label').replace(' (link not configured)', '');
+  link.className = icon.className; link.dataset.social = key;
+  link.href = url; link.target = '_blank'; link.rel = 'noopener noreferrer';
+  link.setAttribute('aria-label', name); link.title = name;
+  link.append(...icon.childNodes); icon.replaceWith(link);
+});
