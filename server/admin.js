@@ -9,7 +9,7 @@ Object.assign(fields, {
 });
 const labels = { news: 'News item', events: 'Event', businesses: 'Business', churches: 'Church', villages: 'Village association', terms: 'Board term', leadership: 'Board member', documents: 'Document' };
 const limits = { news: 50, events: 50, businesses: 200, churches: 200, villages: 200, terms: 20, leadership: 200, documents: 2 };
-const mediaFields = ['youtubeChannel', 'facebookPage', 'youtubeVideoId'];
+const mediaFields = ['youtubeChannel', 'facebookPage', 'instagramPage', 'tiktokPage', 'xPage', 'youtubeVideoId'];
 function message(value) { $('status').textContent = value; }
 function refreshCounts() {
   document.querySelectorAll('[data-count]').forEach(node => { node.textContent = $(node.dataset.count + '-items').children.length; });

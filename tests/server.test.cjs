@@ -28,6 +28,18 @@ test('password configuration and content validation', async () => {
   assert.throws(() => validateContent({ ...good, media: { ...good.media, youtubeChannel: 'https://example.org' } }));
 });
 
+test('social profile settings preserve older content and validate official URLs', () => {
+  const legacy = structuredClone(defaults);
+  delete legacy.media.instagramPage; delete legacy.media.tiktokPage; delete legacy.media.xPage;
+  assert.equal(migrateContent(legacy).media.instagramPage, '');
+  const configured = structuredClone(defaults);
+  configured.media.instagramPage = 'https://www.instagram.com/ziok/';
+  configured.media.tiktokPage = 'https://www.tiktok.com/@ziok';
+  configured.media.xPage = 'https://x.com/ziok';
+  assert.deepEqual(validateContent(configured).media, configured.media);
+  assert.throws(() => validateContent({ ...configured, media: { ...configured.media, instagramPage: 'https://example.org/' } }));
+});
+
 test('community defaults and migration preserve original records, reject invalid changes', () => {
   const content = validateContent(defaults);
   assert.deepEqual([content.businesses.length, content.churches.length, content.villages.length, content.leadership.length, content.terms.length, content.documents.length], [42, 21, 49, 14, 2, 2]);

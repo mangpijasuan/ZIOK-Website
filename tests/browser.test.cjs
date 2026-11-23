@@ -96,6 +96,8 @@ test('administrator can sign in, save bilingual draft and publish it', async () 
     await page.setViewportSize(mobile);
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2));
     await page.setViewportSize(desktop);
+    await page.locator('#facebookPage').fill('https://www.facebook.com/example-ziok');
+    await page.locator('#instagramPage').fill('https://www.instagram.com/example-ziok/');
     await page.locator('#news-items [data-field="title"]').first().fill('Test announcement');
     await page.locator('#news-items [data-field="titleZo"]').first().fill('Entelna thuthak');
     await page.locator('.sidebar a[href="#module-businesses"]').click();
@@ -121,11 +123,16 @@ test('administrator can sign in, save bilingual draft and publish it', async () 
     await textIs(page, '#draft-status', 'Saved draft');
     const publicPage = await context.newPage();
     await publicPage.goto(origin + '/');
+    assert.equal(await publicPage.locator('.social-links a').count(), 0);
+    assert.equal(await publicPage.locator('.social-links svg').count(), 5);
     assert.equal(await publicPage.locator('#newsgrid h3').first().textContent(), 'A home for the Zomi community');
     page.once('dialog', dialog => dialog.accept());
     await page.locator('#publish').click();
     await textIs(page, '#status', 'Published successfully.');
     await publicPage.reload();
+    assert.equal(await publicPage.locator('a[data-social="facebookPage"]').getAttribute('href'), 'https://www.facebook.com/example-ziok');
+    assert.equal(await publicPage.locator('a[data-social="instagramPage"]').getAttribute('href'), 'https://www.instagram.com/example-ziok/');
+    assert.equal(await publicPage.locator('span[data-social="tiktokPage"]').count(), 1);
     assert.equal(await publicPage.locator('#newsgrid h3').first().textContent(), 'Test announcement');
     await publicPage.locator('#lang').selectOption('zo');
     await textIs(publicPage, '#newsgrid h3', 'Entelna thuthak');
