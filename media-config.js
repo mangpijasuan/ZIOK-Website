@@ -2,5 +2,8 @@
 const ZIOK_MEDIA = Object.freeze({
   youtubeChannel: '',
   facebookPage: '',
+  instagramPage: '',
+  tiktokPage: '',
+  xPage: '',
   youtubeVideoId: ''
 });
