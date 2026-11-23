@@ -88,3 +88,13 @@ html[lang="ctd"] .hero-final-line{display:inline-block;white-space:normal;font-s
 .about-lead{max-width:800px;font-size:19px;color:#49627b}
 .footer-rule{border:0;border-top:1px solid #ffffff20;margin:25px 0}
 .center{text-align:center}
+
+.footer .social-links{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px}
+.footer .social-icon{display:grid;place-items:center;width:44px;height:44px;margin:0;border-radius:50%;background:#fff;color:#242424;text-decoration:none;border:1px solid #dce5ee}
+.footer span.social-icon{opacity:.65;cursor:default}
+.footer a.social-icon:hover{transform:translateY(-2px);box-shadow:0 3px 10px #0003}
+.footer .social-facebookPage{color:#1877f2}
+.footer .social-youtubeChannel{color:#ff0033}
+.footer .social-instagramPage{color:#c13584}
+.footer .social-tiktokPage{color:#242424}
+.footer .social-xPage{color:#242424}
