@@ -3,7 +3,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { randomBytes, timingSafeEqual } = require('node:crypto');
 const { defaults, validateContent, migrateContent } = require('./content.cjs');
-const { verifyPassword, parseUsers } = require('./auth.cjs');
+const { createAccountStore } = require('./accounts.cjs');
+const { hashPassword, verifyPassword, parseUsers } = require('./auth.cjs');
 const { parseTrustedProxies, clientAddress } = require('./proxy.cjs');
 const { routeContentPage, contentSitemapEntries } = require('./pages.cjs');
 const { sendBody, bodyTag, sendFileWithCaching } = require('./delivery.cjs');
@@ -85,6 +86,13 @@ function createApp({ users, stateFile, origin, secureCookies = true, trustedProx
   const publicContent = () => state.published ?? fallbackContent;
   const sessions = new Map(), attempts = new Map(), accountFailures = new Map();
   let pendingLogins = 0;
+  // Accounts changed in the portal live in their own owner-only file, so password hashes never travel in content backups.
+  const accounts = createAccountStore({ envUsers: users, file: path.join(path.dirname(stateFile), 'accounts.json'), persist });
+  function auditOnly(actor, action) {
+    const next = { ...state, audit: [...state.audit, { at: new Date().toISOString(), actor, action, revision: state.revision }].slice(-1000) };
+    persist(stateFile, next); state = next;
+  }
+  function revokeSessions(username, keep) { for (const [id, entry] of sessions) if (entry.username === username && id !== keep) sessions.delete(id); }
   const cookieName = secureCookies ? '__Host-ziok-session' : 'ziok-local-session';
   const cookie = (value, age) => `${cookieName}=${value}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${age}${secureCookies ? '; Secure' : ''}`;
   function sessionFor(req) {
@@ -117,7 +125,7 @@ function createApp({ users, stateFile, origin, secureCookies = true, trustedProx
         const entry = attempts.get(key) || { count: 0, until: now + limitWindow };
         if (entry.count >= 20 || pendingLogins >= 4) return json(res, 429, { error: 'Try again later' });
         entry.count++; attempts.set(key, entry); pendingLogins++;
-        const user = users.get(username);
+        const user = accounts.get(username);
         let valid; try { valid = await verifyPassword(input?.password, user?.passwordHash); } finally { pendingLogins--; }
         if (!user || !valid) {
           const failures = accountFailures.get(username) || { count: 0, until: now + limitWindow };
@@ -131,14 +139,69 @@ function createApp({ users, stateFile, origin, secureCookies = true, trustedProx
         for (const [id, session] of sessions) if (session.expires <= now) sessions.delete(id);
         if (sessions.size >= 1000) return json(res, 503, { error: 'Try again later' });
         const previous = sessionFor(req); if (previous) sessions.delete(previous.id);
-        const id = token(); sessions.set(id, { username, role: user.role, csrf: token(), expires: now + ttl });
-        res.setHeader('Set-Cookie', cookie(id, ttl / 1000)); return json(res, 200, { ok: true });
+        const id = token(); sessions.set(id, { username, role: user.role, mustChange: Boolean(user.mustChange), csrf: token(), expires: now + ttl });
+        res.setHeader('Set-Cookie', cookie(id, ttl / 1000)); return json(res, 200, { ok: true, mustChange: Boolean(user.mustChange) });
       }
       if (pathname.startsWith('/api/admin/')) {
         const session = sessionFor(req);
         if (!session) return json(res, 401, { error: 'Sign in required' });
         if (method === 'POST' && !equalToken(req.headers['x-csrf-token'], session.csrf)) return json(res, 403, { error: 'Invalid request token' });
-        if (pathname === '/api/admin/session' && method === 'GET') return json(res, 200, { username: session.username, role: session.role, csrf: session.csrf });
+        // A temporary password set by an administrator must be replaced before anything else is allowed.
+        if (session.mustChange && !['/api/admin/session', '/api/admin/password', '/api/admin/logout'].includes(pathname)) return json(res, 403, { error: 'Password change required' });
+        if (pathname === '/api/admin/session' && method === 'GET') return json(res, 200, { username: session.username, role: session.role, csrf: session.csrf, mustChange: session.mustChange });
+        if (pathname === '/api/admin/password' && method === 'POST') {
+          let input; try { input = await body(req); } catch { return json(res, 400, { error: 'Invalid request' }); }
+          const me = accounts.get(session.username);
+          if (!me) return json(res, 401, { error: 'Sign in required' });
+          const now = Date.now(), failures = accountFailures.get(session.username);
+          if (failures && failures.until > now && failures.count >= accountFailureLimit) return json(res, 429, { error: 'Try again later' });
+          if (pendingLogins >= 4) return json(res, 429, { error: 'Try again later' });
+          pendingLogins++; let valid; try { valid = await verifyPassword(input?.current, me.passwordHash); } finally { pendingLogins--; }
+          if (!valid) {
+            const entry = failures && failures.until > now ? failures : { count: 0, until: now + limitWindow };
+            entry.count++; accountFailures.set(session.username, entry);
+            return json(res, 403, { error: 'Current password is incorrect' });
+          }
+          if (input.next === input.current) return json(res, 400, { error: 'Choose a different password' });
+          let passwordHash; try { passwordHash = await hashPassword(input.next); } catch (error) { return json(res, 400, { error: error.message }); }
+          accounts.set(session.username, { ...me, passwordHash, mustChange: false });
+          revokeSessions(session.username, session.id); sessions.get(session.id).mustChange = false;
+          auditOnly(session.username, 'changed own password');
+          return json(res, 200, { ok: true });
+        }
+        if (pathname === '/api/admin/accounts') {
+          if (session.role !== 'admin') return json(res, 403, { error: 'Administrators only' });
+          if (method === 'GET') return json(res, 200, { accounts: accounts.list() });
+          if (method === 'POST') {
+            let input; try { input = await body(req); } catch { return json(res, 400, { error: 'Invalid request' }); }
+            const username = typeof input?.username === 'string' ? input.username : '';
+            const existing = accounts.get(username, true);
+            try {
+              if (input?.action === 'create') {
+                if (!/^[A-Za-z0-9_.-]{1,64}$/.test(username)) throw new Error('Username may use letters, numbers, dots, dashes and underscores (up to 64)');
+                if (existing) throw new Error('That username already exists');
+                if (!['admin', 'editor'].includes(input.role)) throw new Error('Choose a role');
+                accounts.set(username, { role: input.role, passwordHash: await hashPassword(input.password), mustChange: true });
+                auditOnly(session.username, `created ${input.role} account ${username}`);
+              } else {
+                if (!existing) throw new Error('Unknown account');
+                const self = username === session.username;
+                const next = { ...existing };
+                if (input?.action === 'reset') { next.passwordHash = await hashPassword(input.password); next.mustChange = true; }
+                else if (input?.action === 'role') { if (!['admin', 'editor'].includes(input.role)) throw new Error('Choose a role'); next.role = input.role; }
+                else if (input?.action === 'disable') next.disabled = true;
+                else if (input?.action === 'enable') delete next.disabled;
+                else throw new Error('Unknown action');
+                if (self && (next.disabled || next.role !== 'admin')) throw new Error('You cannot disable or demote your own account');
+                if (!accounts.wouldKeepAdmin(username, next)) throw new Error('Keep at least one active administrator');
+                accounts.set(username, next); revokeSessions(username);
+                auditOnly(session.username, `${input.action === 'role' ? `set role of ${username} to ${input.role}` : `${input.action} account ${username}`}`);
+              }
+            } catch (error) { return json(res, 400, { error: error.message || 'Invalid request' }); }
+            return json(res, 200, { accounts: accounts.list() });
+          }
+        }
+
         if (pathname === '/api/admin/state' && method === 'GET') return json(res, 200, { revision: state.revision, draft: state.draft, published: state.published !== null, audit: session.role === 'admin' ? state.audit.slice(-100).reverse() : [] });
         if (pathname === '/api/admin/network' && method === 'GET') {
           if (session.role !== 'admin') return json(res, 403, { error: 'Administrators only' });

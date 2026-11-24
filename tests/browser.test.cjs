@@ -160,6 +160,49 @@ test('administrator can sign in, save bilingual draft and publish it', async () 
   }
 });
 
+test('administrator adds an account and the new person must choose their own password', async () => {
+  const folder = await fs.mkdtemp(path.join(os.tmpdir(), 'ziok-browser-'));
+  const password = 'test-only-password-for-browser';
+  const users = parseUsers(JSON.stringify([{ username: 'officer', role: 'admin', passwordHash: await hashPassword(password) }]));
+  const origin = 'http://127.0.0.1:18660';
+  const accountServer = createApp({ users, stateFile: path.join(folder, 'content.json'), origin, secureCookies: false });
+  const contexts = [];
+  try {
+    await new Promise((resolve, reject) => { accountServer.once('error', reject); accountServer.listen(18660, '127.0.0.1', resolve); });
+    const signIn = async (name, secret) => {
+      const context = await browser.newContext({ viewport: desktop }); contexts.push(context);
+      const page = await context.newPage();
+      await page.goto(origin + '/admin');
+      await page.locator('#username').fill(name);
+      await page.locator('#password').fill(secret);
+      await page.locator('#login button').click();
+      await page.locator('#dashboard').waitFor({ state: 'visible' });
+      return page;
+    };
+    const admin = await signIn('officer', password);
+    await admin.locator('#accounts-panel').waitFor({ state: 'visible' });
+    await admin.locator('#new-username').fill('maria');
+    await admin.locator('#temp-password').fill('temporary-password-123');
+    await admin.locator('#account-form button').click();
+    await admin.locator('#account-list li', { hasText: 'maria' }).waitFor();
+    assert.ok((await admin.locator('#account-list li', { hasText: 'maria' }).textContent()).includes('must change password'));
+
+    const maria = await signIn('maria', 'temporary-password-123');
+    assert.equal(await maria.locator('#editor').isHidden(), true, 'editor stays hidden until the password is changed');
+    assert.equal(await maria.locator('#accounts-panel').isHidden(), true);
+    await maria.locator('#current-password').fill('temporary-password-123');
+    await maria.locator('#new-password').fill('maria-chose-this-password');
+    await maria.locator('#confirm-password').fill('maria-chose-this-password');
+    await maria.locator('#password-form button').click();
+    await maria.locator('#editor').waitFor({ state: 'visible' });
+    assert.equal(await maria.locator('#accounts-panel').isHidden(), true, 'editors never see account management');
+  } finally {
+    for (const context of contexts) await context.close();
+    await new Promise(resolve => accountServer.close(resolve));
+    await fs.rm(folder, { recursive: true, force: true });
+  }
+});
+
 for (const [name, viewport] of [['desktop', desktop], ['mobile', mobile]]) {
   test(`${name}: every public route renders without horizontal page overflow`, async () => {
     await withPage(viewport, async page => {

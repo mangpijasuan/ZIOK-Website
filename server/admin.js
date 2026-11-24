@@ -73,11 +73,52 @@ async function load() {
   message(`Loaded revision ${revision}. ${data.published ? 'Published content is active.' : 'Original public content is active.'}`);
 }
 async function signedIn() {
-  session = await request('session'); await load();
+  session = await request('session');
   $('identity').textContent = `${session.username} · ${session.role}`;
-  $('publish').hidden = session.role !== 'admin'; $('audit-panel').hidden = session.role !== 'admin'; $('audit-link').hidden = session.role !== 'admin';
+  $('account-username').value = session.username;
+  // A temporary password must be replaced before anything else is shown.
+  const locked = Boolean(session.mustChange);
+  for (const id of ['editor', 'audit-panel']) $(id).hidden = locked || (id === 'audit-panel' && session.role !== 'admin');
+  document.querySelector('.sidebar').hidden = locked;
+  $('account-notice').textContent = locked ? 'Your password was set by an administrator. Choose a new password to continue.' : 'Change your own password. Use at least 14 characters; a few random words work well. You will stay signed in on this device and be signed out everywhere else.';
+  if (!locked) await load();
+  $('publish').hidden = session.role !== 'admin'; $('audit-link').hidden = locked || session.role !== 'admin';
+  $('accounts-panel').hidden = locked || session.role !== 'admin';
+  if (!$('accounts-panel').hidden) await loadAccounts();
   $('signin').hidden = true; $('dashboard').hidden = false; $('logout').hidden = false;
 }
+async function loadAccounts() { renderAccounts((await request('accounts')).accounts); }
+function accountButton(label, action, account, extra = {}) {
+  const button = document.createElement('button'); button.type = 'button'; button.textContent = label;
+  button.addEventListener('click', () => busy(button, async () => {
+    const payload = { action, username: account.username, ...extra };
+    if (action === 'reset') { const password = prompt(`Temporary password for ${account.username} (14 characters or more). They must change it at next sign-in.`); if (!password) return; payload.password = password; }
+    else if (!confirm(`${label} — ${account.username}? This signs them out.`)) return;
+    renderAccounts((await request('accounts', payload)).accounts); $('accounts-status').textContent = 'Saved.';
+  }));
+  return button;
+}
+function renderAccounts(list) {
+  $('account-list').replaceChildren(...list.map(account => {
+    const item = document.createElement('li'); const text = document.createElement('span');
+    text.textContent = `${account.username} · ${account.role === 'admin' ? 'administrator' : 'editor'}${account.disabled ? ' · disabled' : ''}${account.mustChange ? ' · must change password' : ''} `;
+    item.append(text, accountButton('Reset password', 'reset', account),
+      accountButton(account.role === 'admin' ? 'Make editor' : 'Make administrator', 'role', account, { role: account.role === 'admin' ? 'editor' : 'admin' }),
+      accountButton(account.disabled ? 'Enable' : 'Disable', account.disabled ? 'enable' : 'disable', account));
+    return item;
+  }));
+}
+$('password-form').addEventListener('submit', event => { event.preventDefault(); busy(event.submitter, async () => {
+  if ($('new-password').value !== $('confirm-password').value) { $('password-status').textContent = 'The new passwords do not match.'; return; }
+  await request('password', { current: $('current-password').value, next: $('new-password').value });
+  for (const id of ['current-password', 'new-password', 'confirm-password']) $(id).value = '';
+  $('password-status').textContent = 'Password changed.';
+  if (session.mustChange) await signedIn();
+}); });
+$('account-form').addEventListener('submit', event => { event.preventDefault(); busy(event.submitter, async () => {
+  renderAccounts((await request('accounts', { action: 'create', username: $('new-username').value, role: $('new-role').value, password: $('temp-password').value })).accounts);
+  $('new-username').value = ''; $('temp-password').value = ''; $('accounts-status').textContent = 'Account added. Share the temporary password privately.';
+}); });
 function signedOut() { session = null; $('dashboard').hidden = true; $('logout').hidden = true; $('signin').hidden = false; $('password').value = ''; }
 async function busy(button, action) {
   button.disabled = true;
