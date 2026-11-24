@@ -112,3 +112,14 @@ Administrators can change the public contact address under **Contact** in the po
 ## "Last updated" on directory pages
 
 The business, church and village pages show "Last updated <date>" once something has been published in the administrator portal. The date is the day of the most recent **publish** (drafts and saves do not count), the same date the sitemap uses. Static hosts without the Node server show no date. The label is English only until a Zomi translation is supplied in `locale.js`.
+
+## Accounts: adding people, changing and resetting passwords
+
+Administrators manage accounts in the portal, under **Accounts**. Everyone changes their own password under **Your account**.
+
+- **Add an account**: choose a username, a role (editor or administrator) and a temporary password of at least 14 characters. Share it privately. The person must choose their own password at their first sign-in, and nothing else in the portal works until they do.
+- **Forgot password**: an administrator uses **Reset password** to set a new temporary password. There is no email reset, because that would need an outside email service; an administrator resetting it for a small team is simpler and safer.
+- **Disable, enable, change role**: each ends that person's open sessions immediately. You cannot disable or demote your own account, and the last active administrator cannot be removed.
+- **Where it is stored**: changes are saved in `accounts.json` next to the content file, readable only by the server's user, and kept out of content backups so password hashes never leave the server. Accounts in `ZIOK_USERS_JSON` keep working; once an account is changed in the portal, the saved version replaces the one from the variable. Keep at least one account in `ZIOK_USERS_JSON` as a recovery route: if every administrator forgot their password, replace its hash there, delete that name from `accounts.json` and redeploy.
+- **Back up the volume**: `accounts.json` lives on the same persistent volume as the content; include it in whole-volume backups.
+- Every account action is recorded in the audit history (who, what, when), never the passwords.
