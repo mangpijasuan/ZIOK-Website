@@ -143,7 +143,7 @@ function createApp({ users, stateFile, origin, secureCookies = true, trustedProx
         if (pathname === '/api/admin/network' && method === 'GET') {
           if (session.role !== 'admin') return json(res, 403, { error: 'Administrators only' });
           // Lets an administrator confirm the proxy settings: connectingAddress is the proxy to trust, clientAddress should be the visitor's own public address.
-          return json(res, 200, { connectingAddress: clientAddress(req, parseTrustedProxies('')), clientAddress: clientAddress(req, trustedProxies), forwardedFor: req.headers['x-forwarded-for'] || null, trustedProxiesConfigured: trustedProxies.configured });
+          return json(res, 200, { connectingAddress: clientAddress(req, parseTrustedProxies('')), clientAddress: clientAddress(req, trustedProxies), forwardedFor: req.headers['x-forwarded-for'] || null, trustedProxiesConfigured: trustedProxies.configured, cloudflare: trustedProxies.cloudflare, cfConnectingIp: req.headers['cf-connecting-ip'] || null });
         }
         if (pathname === '/api/admin/backup' && method === 'GET') {
           if (session.role !== 'admin') return json(res, 403, { error: 'Administrators only' });
@@ -210,7 +210,7 @@ if (require.main === module) {
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Invalid PORT');
   const users = parseUsers(process.env.ZIOK_USERS_JSON);
   const stateFile = path.resolve(process.env.ZIOK_STATE_FILE || path.join(root, 'var', 'content.json'));
-  const trustedProxies = parseTrustedProxies(process.env.ZIOK_TRUSTED_PROXIES);
+  const trustedProxies = parseTrustedProxies(process.env.ZIOK_TRUSTED_PROXIES, { cloudflare: process.env.ZIOK_CLOUDFLARE === 'true' });
   if (!insecure && !trustedProxies.configured) console.warn('ZIOK_TRUSTED_PROXIES is not set: login limits use the connecting address, which is the proxy itself when deployed behind one.');
   const server = createApp({ users, stateFile, origin, secureCookies: !insecure, trustedProxies, hsts: insecure ? '' : hstsValue(process.env) });
   const host = resolveBindHost(process.env.ZIOK_BIND_HOST, insecure);
