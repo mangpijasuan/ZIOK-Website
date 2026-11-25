@@ -1,4 +1,4 @@
-FROM node:24-bookworm-slim
+FROM node:26-bookworm-slim
 WORKDIR /app
 COPY --chown=node:node *.html *.js *.css *.png *.webp *.jpg *.ico robots.txt sitemap.xml package.json ./
 COPY --chown=node:node documents ./documents
