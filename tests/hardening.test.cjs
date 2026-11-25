@@ -103,7 +103,7 @@ test('administrators can check proxy detection and download a backup copy', asyn
     assert.equal((await fetch(`${base}/api/admin/backup`)).status, 401);
     const cookie = await signIn('203.0.113.7');
     const network = await (await fetch(`${base}/api/admin/network`, { headers: { ...cookie, 'X-Forwarded-For': '203.0.113.7' } })).json();
-    assert.deepEqual(network, { connectingAddress: '127.0.0.1', clientAddress: '203.0.113.7', forwardedFor: '203.0.113.7', trustedProxiesConfigured: true });
+    assert.deepEqual(network, { connectingAddress: '127.0.0.1', clientAddress: '203.0.113.7', forwardedFor: '203.0.113.7', trustedProxiesConfigured: true, cloudflare: false, cfConnectingIp: null });
     const download = await fetch(`${base}/api/admin/backup`, { headers: cookie });
     assert.equal(download.status, 200);
     assert.match(download.headers.get('content-disposition'), /^attachment; filename="ziok-content-r0-\d{4}-\d{2}-\d{2}\.json"$/);
@@ -160,4 +160,22 @@ test('backups are validated, skipped when unchanged, and pruned', () => {
     assert.throws(() => backup({ stateFile, keep: 0 }));
     assert.equal(fs.readdirSync(path.join(directory, 'backups')).length, 2, 'failed runs never delete good backups');
   } finally { fs.rmSync(directory, { recursive: true, force: true }); }
+});
+
+test('behind Cloudflare the visitor address comes from CF-Connecting-IP, and only when Cloudflare really connected', () => {
+  const trusted = parseTrustedProxies('10.0.0.0/24', { cloudflare: true });
+  const viaProxy = (forwarded, visitor, socket = '10.0.0.6') => ({ socket: { remoteAddress: socket }, headers: { 'x-forwarded-for': forwarded, ...(visitor === undefined ? {} : { 'cf-connecting-ip': visitor }) } });
+  // The proxy overwrote X-Forwarded-For with the Cloudflare edge it saw.
+  assert.equal(clientAddress(viaProxy('172.69.10.1', '203.0.113.9'), trusted), '203.0.113.9');
+  assert.equal(clientAddress(viaProxy('2606:4700::1', '2001:db8::7'), trusted), '2001:db8::7');
+  // A request that reached the origin without Cloudflare cannot name its own address.
+  assert.equal(clientAddress(viaProxy('198.51.100.20', '203.0.113.9'), trusted), '198.51.100.20');
+  assert.equal(clientAddress(viaProxy('203.0.113.9, 198.51.100.20', '192.0.2.1'), trusted), '198.51.100.20');
+  // Missing, malformed or Cloudflare-range values fall back to the edge address (one shared bucket, never a chosen one).
+  assert.equal(clientAddress(viaProxy('172.69.10.1', undefined), trusted), '172.69.10.1');
+  assert.equal(clientAddress(viaProxy('172.69.10.1', 'not-an-ip'), trusted), '172.69.10.1');
+  assert.equal(clientAddress(viaProxy('172.69.10.1', '104.16.0.5'), trusted), '172.69.10.1');
+  // Without the setting the header is ignored; an untrusted socket is never believed.
+  assert.equal(clientAddress(viaProxy('172.69.10.1', '203.0.113.9'), parseTrustedProxies('10.0.0.0/24')), '172.69.10.1');
+  assert.equal(clientAddress(viaProxy('172.69.10.1', '203.0.113.9', '198.51.100.7'), trusted), '198.51.100.7');
 });

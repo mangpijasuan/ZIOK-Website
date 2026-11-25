@@ -112,3 +112,12 @@ Administrators can change the public contact address under **Contact** in the po
 ## "Last updated" on directory pages
 
 The business, church and village pages show "Last updated <date>" once something has been published in the administrator portal. The date is the day of the most recent **publish** (drafts and saves do not count), the same date the sitemap uses. Static hosts without the Node server show no date. The label is English only until a Zomi translation is supplied in `locale.js`.
+
+## Running behind Cloudflare
+
+If the domain's DNS record is **Proxied** (orange cloud) in Cloudflare, visitors connect to Cloudflare, not to the server. This also lets people on company networks that block hosting addresses reach the site.
+
+1. In Cloudflare: **SSL/TLS → Overview → Full (strict)**. (Flexible causes redirect loops with Coolify's HTTPS redirect.)
+2. In Coolify, add `ZIOK_CLOUDFLARE=true` next to `ZIOK_TRUSTED_PROXIES` (the Docker network, as before) and redeploy. The visitor's address is then taken from Cloudflare's `CF-Connecting-IP`, and believed only when the connection really came from a Cloudflare address (`server/proxy.cjs` lists the ranges, checked 2026-11-24; compare with https://www.cloudflare.com/ips-v4 now and then).
+3. Verify: sign in as admin and open `/api/admin/network`. `clientAddress` should be your own public address and `cloudflare` should be `true`. If `clientAddress` is a Cloudflare address, login limits are shared by all visitors: check steps 1–2.
+4. Leave `cloud.siamsil.org` (the Coolify panel) **DNS only** (grey cloud) unless you want it proxied too.
